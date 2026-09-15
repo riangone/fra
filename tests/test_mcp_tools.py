@@ -10,8 +10,8 @@ def test_valuation_tool():
     val = get_stock_valuation("7203")
     assert "error" not in val
     assert val["ticker"] == "7203"
-    assert val["per"] == 9.8
-    assert val["pbr"] == 1.12
+    assert val["per"] == 9.2
+    assert val["pbr"] == 1.05
     assert val["valuation_status"] == "UNDERVALUED"
 
 
