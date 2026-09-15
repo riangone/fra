@@ -63,7 +63,7 @@
           <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">P95 推論レイテンシ (Cache)</div>
         </div>
         <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center;">
-          <div style="font-size: 28px; font-weight: 800; color: var(--accent-yellow);">18 / 18</div>
+          <div style="font-size: 28px; font-weight: 800; color: var(--accent-yellow);">38 / 38</div>
           <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">CI 回帰テスト合格数 (pytest)</div>
         </div>
       </div>
@@ -124,6 +124,19 @@
           </div>
         </a>
 
+        <!-- Card 5: Cloud-Native Infra & IaC -->
+        <a href="../infra/README.md" class="portal-card">
+          <div class="card-icon">☁️</div>
+          <div class="card-title">クラウドインフラ &amp; IaC 設計</div>
+          <div class="card-desc">
+            日経法人サービス本番運用基準を満たすマルチクラウド（AWS Lambda LWA + GCP Discovery Engine / Vertex AI）および Datadog SLO 監視・Terraform 構成仕様書。
+          </div>
+          <div class="card-meta">
+            <span>対象: SRE / インフラ / アーキテクト</span>
+            <span class="badge badge-blue">約 10 分</span>
+          </div>
+        </a>
+
       </div>
 
       <!-- Architecture Highlights -->
@@ -145,13 +158,25 @@
           <div>
             <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--accent-purple);">3. ハイブリッド RRF 検索エンジン</h4>
             <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
-              日本語 CJK Bi-gram + 金融複合数値トークナイズによる BM25 Okapi と Dense Vector を順位融合（$k=60$）。
+              日本語 CJK Bi-gram + 金融複合数値トークナイズによる BM25 Okapi と Dense Vector を順位融合（$k=60$）。Elasticsearch 8.x Kuromoji 拡張対応。
             </p>
           </div>
           <div>
             <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--accent-yellow);">4. 文単位引用一致率監査器</h4>
             <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
               生成文中のすべての主張を分解し、文献 Chunk / MCP データのトークン包含を検証。Consistency Rate、Precision、Recall を自動定量化。
+            </p>
+          </div>
+          <div>
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--accent-blue);">5. 夜間非同期開示バッチ基盤</h4>
+            <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
+              東証大引け（15:00）後の適時開示ラッシュを想定した <code>asyncio.Semaphore</code> 並行制御による自律分析・研報生成パイプライン。
+            </p>
+          </div>
+          <div>
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--accent-red);">6. クラウドネイティブ IaC &amp; 可観測性</h4>
+            <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
+              AWS Lambda 预置并发冷启动排除 + GCP Discovery Engine / Vertex AI + W3C TraceContext &amp; Datadog SLO 監視。
             </p>
           </div>
         </div>

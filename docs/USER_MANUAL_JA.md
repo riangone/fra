@@ -151,10 +151,13 @@ sudo caddy reload
    - **ステートマシン進捗バー**: `Query Rewrite` → `Hybrid Search` → `MCP Tools` → `Synthesizer` → `Citation Verifier`
    - **回答ストリーミングエリア**: 引用タグ付き回答本文の打字機風リアルタイム描画
    - **引用監査スコアボード**: Consistency Rate (引用一致率)、Precision (適合率)、Recall (再現率)、判定バッジ (PASS / FAIL)
-3. **インテリジェンス・サイドパネル (右ペイン)**:
-   - **MCP 財務指標カード**: PER、PBR、ROE、TSR、時価総額、配当利回り
-   - **バリュートラップ判定**: 低PBR企業の資本収益性評価
-   - **検索引用元チャンク (Retrieved Chunks)**: RRF スコア付きの根拠記事カード
+3. **インテリジェンス・サイドパネル (右ペイン: Evidence & MCP Context)**:
+   - **アーキテクチャバッジ**: `日経 Hybrid RAG × Live MCP`
+   - **リアルタイムカウンター**: 検索チャンク数と MCP ツール数を連動表示 (`X Chunks / Y Tools`)
+   - **3 タブ構成**:
+     - `📚 検索チャンク (Hybrid RRF)`: CJK Bi-gram BM25 + Dense Vector 経由で取得された RRF 上位 5 件の根拠記事カード（RRF スコア・所属企業・「一次資料をプレビュー」モーダル連動）
+     - `⚡ MCP 財務ツール指標`: PER、PBR、ROE、TSR、時価総額、配当利回り、バリュートラップ判定、直近適時開示
+     - `🔍 実行トレース`: 各ノードの実行所要時間、クエリ改写結果、実行 LLM プロバイダのリアルタイムトレース
 
 ### 4.2 データソースの切り替え操作
 - **`📦 スナップショット` モード**:
@@ -271,9 +274,10 @@ python eval/run_eval.py
 - 平均処理レイテンシ: < 100ms
 
 ### 7.2 ユニットおよび統合テストスイート
-全 18 件のテストを実行：
+全 38 件のテストを実行（100% 合格）：
 ```bash
 pytest -v
+# 38 passed in 7.80s
 ```
 
 ---

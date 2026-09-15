@@ -232,9 +232,14 @@ sudo caddy reload</code></pre>
                 <td>生成された文を自動監査し、引用一致率（例: 93.3%）と合否判定を表示。</td>
               </tr>
               <tr>
-                <td><strong>右サイドパネル</strong></td>
-                <td>MCP 財務カード、根拠 Chunk</td>
-                <td>PER、PBR、ROE、TSR、時価総額、バリュートラップ判定、RRF 融合スコア付きの文献カードを表示。</td>
+                <td><strong>右サイドパネル (Evidence & MCP)</strong></td>
+                <td>3タブ構成 (検索チャンク / MCP指標 / 実行トレース)</td>
+                <td>
+                  ・<code>日経 Hybrid RAG × Live MCP</code> バッジ &amp; リアルタイム件数カウンター<br>
+                  ・<strong>📚 検索チャンク (Hybrid RRF)</strong>: CJK Bi-gram BM25 + Dense Vector による RRF 上位 5 件と一次資料モーダルプレビュー<br>
+                  ・<strong>⚡ MCP 財務ツール指標</strong>: PER、PBR、ROE、TSR、時価総額、バリュートラップ判定、直近適時開示<br>
+                  ・<strong>🔍 実行トレース</strong>: ノード別所要時間・クエリ改写結果・LLM Provider
+                </td>
               </tr>
             </tbody>
           </table>
@@ -298,7 +303,7 @@ python -m src.batch.nightly_disclosure_batch --concurrency 4 --mode live_api</co
 
         <h3>7.2 ユニットおよび統合テストスイート</h3>
         <pre><code class="language-bash">pytest -v
-# 18 passed in 2.15s</code></pre>
+# 38 passed in 7.80s</code></pre>
 
         <hr>
 
