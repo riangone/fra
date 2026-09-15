@@ -11,23 +11,35 @@ class MCPFinancialClient:
     def __init__(self, server=mcp_server):
         self.server = server
 
-    async def get_valuation(self, ticker: str) -> Dict[str, Any]:
-        result = await self.server.call_tool("get_stock_valuation", {"ticker": ticker})
+    async def get_valuation(self, ticker: str, mode: Optional[str] = None) -> Dict[str, Any]:
+        args = {"ticker": ticker}
+        if mode:
+            args["mode"] = mode
+        result = await self.server.call_tool("get_stock_valuation", args)
         content_text = result.content[0].text if result.content else "{}"
         return json.loads(content_text)
 
-    async def get_disclosure(self, ticker: str) -> Dict[str, Any]:
-        result = await self.server.call_tool("get_financial_disclosure", {"ticker": ticker})
+    async def get_disclosure(self, ticker: str, mode: Optional[str] = None) -> Dict[str, Any]:
+        args = {"ticker": ticker}
+        if mode:
+            args["mode"] = mode
+        result = await self.server.call_tool("get_financial_disclosure", args)
         content_text = result.content[0].text if result.content else "{}"
         return json.loads(content_text)
 
-    async def get_macro(self) -> List[Dict[str, Any]]:
-        result = await self.server.call_tool("get_macro_indicators", {})
+    async def get_macro(self, mode: Optional[str] = None) -> List[Dict[str, Any]]:
+        args = {}
+        if mode:
+            args["mode"] = mode
+        result = await self.server.call_tool("get_macro_indicators", args)
         content_text = result.content[0].text if result.content else "[]"
         return json.loads(content_text)
 
-    async def compare(self, tickers: List[str]) -> List[Dict[str, Any]]:
-        result = await self.server.call_tool("compare_companies", {"tickers": tickers})
+    async def compare(self, tickers: List[str], mode: Optional[str] = None) -> List[Dict[str, Any]]:
+        args = {"tickers": tickers}
+        if mode:
+            args["mode"] = mode
+        result = await self.server.call_tool("compare_companies", args)
         content_text = result.content[0].text if result.content else "[]"
         return json.loads(content_text)
 

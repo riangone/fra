@@ -10,6 +10,7 @@ class AgentState(TypedDict):
     # User Input
     session_id: str
     query: str
+    data_source_mode: Optional[str]  # 'snapshot' or 'live_api'
     
     # Query Analysis
     rewritten_query: str
@@ -39,6 +40,7 @@ class ChatRequest(BaseModel):
     query: str = Field(..., description="User question in natural language (Japanese or English)")
     session_id: Optional[str] = Field(default="default-session")
     force_verify: bool = Field(default=True, description="Strict citation verification enabled")
+    data_source_mode: Optional[str] = Field(default=None, description="Data source mode: 'snapshot' or 'live_api'")
 
 
 class ChatResponse(BaseModel):

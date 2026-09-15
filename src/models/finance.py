@@ -19,6 +19,7 @@ class FinancialMetrics(BaseModel):
     value_trap_risk: str = "LOW"  # LOW, MODERATE, HIGH
     valuation_status: str = "FAIR"  # UNDERVALUED, FAIR, OVERVALUED
     as_of_date: str
+    data_source: Optional[str] = "snapshot"
 
 
 class DisclosureItem(BaseModel):
@@ -30,6 +31,7 @@ class DisclosureItem(BaseModel):
     net_income_billion_jpy: float
     guidance_revision: Optional[str] = None
     major_catalysts: List[str] = Field(default_factory=list)
+    data_source: Optional[str] = "snapshot"
 
 
 class MacroIndicator(BaseModel):
@@ -38,3 +40,4 @@ class MacroIndicator(BaseModel):
     trend: str
     source: str
     updated_at: str
+    data_source: Optional[str] = "snapshot"

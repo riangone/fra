@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financial RAG & Citation Attribution Agent | Nikkei Showcase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root, [data-theme="dark"] {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: #172033;
+      --bg-card-hover: #1e293b;
+      --border-color: #27354f;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-cyan: #06b6d4;
+      --accent-green: #10b981;
+      --accent-emerald: #059669;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --nikkei-red: #e11d48;
+      --badge-bg: rgba(56, 189, 248, 0.12);
+      --header-bg: rgba(17, 24, 39, 0.9);
+      --panel-header-bg: rgba(23, 32, 51, 0.5);
+      --pill-bg: rgba(39, 53, 79, 0.45);
+      --pill-border: rgba(56, 189, 248, 0.25);
+      --pill-color: #cbd5e1;
+      --trace-bg: #0a0e17;
+      --trace-text: #94a3b8;
+      --audit-bg: rgba(16, 185, 129, 0.08);
+      --audit-border: rgba(16, 185, 129, 0.3);
+      --input-bg: #172033;
+      --toggle-bg: #172033;
+      --toggle-active-bg: #0284c7;
+      --card-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    [data-theme="light"] {
+      --bg-primary: #f3f5f9;
+      --bg-secondary: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f8fafc;
+      --border-color: #d1d9e6;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --accent-blue: #0284c7;
+      --accent-cyan: #0891b2;
+      --accent-green: #059669;
+      --accent-emerald: #047857;
+      --accent-amber: #d97706;
+      --accent-rose: #e11d48;
+      --nikkei-red: #be123c;
+      --badge-bg: rgba(2, 132, 199, 0.1);
+      --header-bg: rgba(255, 255, 255, 0.95);
+      --panel-header-bg: #f8fafc;
+      --pill-bg: #e2e8f0;
+      --pill-border: #cbd5e1;
+      --pill-color: #334155;
+      --trace-bg: #f8fafc;
+      --trace-text: #334155;
+      --audit-bg: rgba(5, 150, 105, 0.08);
+      --audit-border: rgba(5, 150, 105, 0.3);
+      --input-bg: #ffffff;
+      --toggle-bg: #e2e8f0;
+      --toggle-active-bg: #0284c7;
+      --card-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--header-bg);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, var(--nikkei-red) 0%, #be123c 100%);
+      color: white;
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      letter-spacing: 0.05em;
+      box-shadow: 0 2px 10px rgba(225, 29, 72, 0.35);
+    }
+
+    .logo-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-main);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* Data source mode switch */
+    .mode-selector {
+      display: flex;
+      align-items: center;
+      background: var(--toggle-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.2s ease;
+    }
+
+    .mode-btn:hover {
+      color: var(--text-main);
+    }
+
+    .mode-btn.active {
+      background: var(--toggle-active-bg);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+    }
+
+    /* Theme toggle button */
+    .theme-toggle-btn {
+      background: var(--toggle-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0.4rem 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .header-links {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .btn-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn-link:hover {
+      color: var(--text-main);
+      border-color: var(--accent-blue);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 1.25rem 2rem;
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .architecture-banner {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 0.9rem 1.5rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+
+    .pillar-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
+      flex-shrink: 0;
+    }
+
+    .pillar-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .pillar-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .source-badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .source-badge.snapshot {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-blue);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .source-badge.live {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1.5rem;
+      flex: 1;
+    }
+
+    @media (max-width: 1024px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .header-controls {
+        flex-wrap: wrap;
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+
+    .panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+    }
+
+    .panel-header {
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--panel-header-bg);
+    }
+
+    .panel-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-main);
+    }
+
+    .panel-body {
+      padding: 1.25rem;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .pipeline-stepper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 0.78rem;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--text-muted);
+      transition: all 0.3s;
+    }
+
+    .step-item.active {
+      color: var(--accent-cyan);
+      font-weight: 700;
+    }
+
+    .step-item.completed {
+      color: var(--accent-green);
+      font-weight: 600;
+    }
+
+    .step-arrow {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      opacity: 0.6;
+    }
+
+    .query-box-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .preset-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .pill {
+      font-size: 0.75rem;
+      background: var(--pill-bg);
+      color: var(--pill-color);
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      border: 1px solid var(--pill-border);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+
+    .pill:hover {
+      background: rgba(56, 189, 248, 0.18);
+      color: var(--accent-blue);
+      border-color: var(--accent-blue);
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .input-wrapper textarea {
+      flex: 1;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      padding: 0.75rem 1rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: none;
+      min-height: 54px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-wrapper textarea:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0 1.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .response-area {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.25rem;
+      font-size: 0.92rem;
+      line-height: 1.75;
+      min-height: 220px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      position: relative;
+    }
+
+    .response-area mark.citation {
+      background-color: rgba(56, 189, 248, 0.22);
+      color: var(--accent-blue);
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      cursor: pointer;
+    }
+
+    .audit-card {
+      background: var(--audit-bg);
+      border: 1px solid var(--audit-border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .audit-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      text-align: center;
+    }
+
+    .audit-metric-box {
+      background: var(--bg-card);
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .audit-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .audit-val {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent-green);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .chunk-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      transition: border-color 0.2s;
+    }
+
+    .chunk-card:hover {
+      border-color: var(--accent-blue);
+    }
+
+    .chunk-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chunk-title {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .chunk-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.12);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+    }
+
+    .chunk-text {
+      color: var(--text-muted);
+      line-height: 1.5;
+      font-size: 0.78rem;
+    }
+
+    /* MCP Card styling */
+    .mcp-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .mcp-card.macro-card {
+      border-left: 4px solid var(--accent-cyan);
+    }
+
+    .mcp-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mcp-ticker {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--accent-blue);
+      font-size: 0.85rem;
+      margin-right: 0.4rem;
+    }
+
+    .mcp-company {
+      font-weight: 600;
+      color: var(--text-main);
+      font-size: 0.85rem;
+    }
+
+    .mcp-source-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    .mcp-source-tag.tag-live {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .mcp-source-tag.tag-snapshot {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-blue);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .mcp-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      background: var(--bg-primary);
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .mcp-stat {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mcp-k {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    .mcp-v {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .mcp-badges-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.2rem;
+    }
+
+    .badge-status {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      border: 1px solid;
+    }
+
+    .mcp-date {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .tab-nav {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding: 0 1.25rem;
+      background: var(--panel-header-bg);
+    }
+
+    .tab-btn {
+      padding: 0.65rem 0.75rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      color: var(--accent-blue);
+      border-bottom-color: var(--accent-blue);
+    }
+
+    .tab-content {
+      display: none;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    .code-font {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    footer {
+      border-top: 1px solid var(--border-color);
+      padding: 0.85rem 2rem;
+      background: var(--bg-secondary);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-area">
+      <div class="logo-badge">NIKKEI RAG</div>
+      <div class="logo-title">Financial RAG & Citation Attribution Agent</div>
+    </div>
+
+    <div class="header-controls">
+      <!-- Data Source Switcher -->
+      <div class="mode-selector">
+        <button id="btnModeSnapshot" class="mode-btn active" onclick="setDataSourceMode('snapshot')" title="2025/2026 最新確定値スナップショット（高速・完全再現性）">
+          <span>📦 スナップショット</span>
+        </button>
+        <button id="btnModeLive" class="mode-btn" onclick="setDataSourceMode('live_api')" title="Yahoo Finance / yfinance 経由の東京証券取引所・外為リアルタイムAPI">
+          <span>⚡ リアルタイムAPI</span>
+        </button>
+      </div>
+
+      <!-- Theme Switcher -->
+      <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="テーマ切替 (ライト / ダーク)">
+        <span id="themeIcon">☀️</span>
+        <span id="themeText">ライト</span>
+      </button>
+
+      <!-- Links -->
+      <div class="header-links">
+        <a href="/docs" target="_blank" class="btn-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Swagger Docs
+        </a>
+        <a href="/api/v1/health" target="_blank" class="btn-link">
+          <span class="status-dot"></span>
+          Health
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="architecture-banner">
+      <div class="pillar-item">
+        <span class="status-dot"></span>
+        <div>
+          <div class="pillar-name">LangGraph Multi-Step</div>
+          <div class="pillar-sub">StateGraph & 循環レビューEdge</div>
+        </div>
+      </div>
+      <div class="pillar-item">
+        <span class="status-dot"></span>
+        <div>
+          <div class="pillar-name">MCP Protocol Server</div>
+          <div class="pillar-sub">
+            <span id="currentSourceBadge" class="source-badge snapshot">📦 最新スナップショット</span>
+          </div>
+        </div>
+      </div>
+      <div class="pillar-item">
+        <span class="status-dot"></span>
+        <div>
+          <div class="pillar-name">Hybrid Search (RRF)</div>
+          <div class="pillar-sub">BM25 形態素＋Dense Vector</div>
+        </div>
+      </div>
+      <div class="pillar-item">
+        <span class="status-dot"></span>
+        <div>
+          <div class="pillar-name">Citation Verifier</div>
+          <div class="pillar-sub">文単位の引用一致率 93.3% 監査</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="main-grid">
+      <!-- 左側：対話・生成・ワークフローストリーム -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            Financial Intelligence Terminal
+          </div>
+          <span id="sessionTimer" class="code-font" style="font-size:0.75rem; color:var(--text-muted);">Ready</span>
+        </div>
+
+        <div class="panel-body">
+          <div class="pipeline-stepper" id="pipelineStepper">
+            <span class="step-item" id="step-query">1. Query Rewrite</span>
+            <span class="step-arrow">➔</span>
+            <span class="step-item" id="step-search">2. Hybrid RRF</span>
+            <span class="step-arrow">➔</span>
+            <span class="step-item" id="step-mcp">3. MCP Tools</span>
+            <span class="step-arrow">➔</span>
+            <span class="step-item" id="step-synth">4. Synthesizer</span>
+            <span class="step-arrow">➔</span>
+            <span class="step-item" id="step-audit">5. Attribution</span>
+          </div>
+
+          <div class="query-box-container">
+            <div class="preset-pills">
+              <span class="pill" onclick="setQuery('トヨタ自動車(7203)の2024年3月期の営業利益とBEV投資計画について教えてください')">💡 トヨタ(7203) 営業利益とBEV投資</span>
+              <span class="pill" onclick="setQuery('ソニーグループ(6758)のゲーム事業とイメージセンサーの業績見通し')">💡 ソニー(6758) ゲーム・半導体</span>
+              <span class="pill" onclick="setQuery('日本銀行の金融政策決定会合と今後の利上げ方針・為替影響について')">💡 日銀 利上げ・為替動向</span>
+              <span class="pill" onclick="setQuery('ソフトバンクグループ(9984)のNAVとAI投資方針を要約して')">💡 SBG(9984) NAVとAI戦略</span>
+              <span class="pill" onclick="setQuery('三菱UFJ(8306)のPBR改善と金利上昇の影響')">💡 MUFG(8306) PBR・金利</span>
+            </div>
+            <div class="input-wrapper">
+              <textarea id="queryInput" placeholder="日本経済・上場企業の決算や財務指標について質問してください..."></textarea>
+              <button id="submitBtn" class="btn-submit" onclick="startGeneration()">
+                <span>実行</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="response-area" id="responseArea">AI の回答と文単位の根拠引用（Citation）がリアルタイムに表示されます。上のサンプルをクリックするか、質問を入力して「実行」を押してください。</div>
+
+          <div class="audit-card" id="auditCard" style="display: none;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:700; font-size:0.85rem; color:var(--accent-green);">
+                🛡️ 引用一致率 監査レポート (Citation Attribution Verdict: <span id="auditVerdict">PASS</span>)
+              </span>
+              <span class="code-font" id="auditCheckedAt" style="font-size:0.72rem; color:var(--text-muted);"></span>
+            </div>
+            <div class="audit-grid">
+              <div class="audit-metric-box">
+                <div class="audit-label">引用一致率 (Consistency)</div>
+                <div class="audit-val" id="valConsistency">0%</div>
+              </div>
+              <div class="audit-metric-box">
+                <div class="audit-label">引用適合率 (Precision)</div>
+                <div class="audit-val" id="valPrecision">0%</div>
+              </div>
+              <div class="audit-metric-box">
+                <div class="audit-label">引用再現率 (Recall)</div>
+                <div class="audit-val" id="valRecall">0%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 右側：監査証跡・根拠ドキュメント・MCPツール情報 -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+            Evidence & MCP Context
+          </div>
+          <span class="code-font" id="contextCounter" style="font-size:0.75rem; color:var(--text-muted);">0 Chunks / 0 Tools</span>
+        </div>
+
+        <div class="tab-nav">
+          <button class="tab-btn active" onclick="switchTab('chunks')">📚 検索チャンク (Hybrid RRF)</button>
+          <button class="tab-btn" onclick="switchTab('mcp')">⚡ MCP 財務ツール指標</button>
+          <button class="tab-btn" onclick="switchTab('trace')">🔍 実行トレース</button>
+        </div>
+
+        <div class="panel-body">
+          <!-- Chunks Tab -->
+          <div id="tab-chunks" class="tab-content active">
+            <div id="chunksList" style="display:flex; flex-direction:column; gap:0.75rem;">
+              <div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:2rem;">
+                実行後に BM25 と Dense Vector の Reciprocal Rank Fusion (RRF) 検索結果が表示されます。
+              </div>
+            </div>
+          </div>
+
+          <!-- MCP Tab -->
+          <div id="tab-mcp" class="tab-content">
+            <div id="mcpList" style="display:flex; flex-direction:column; gap:0.75rem;">
+              <div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:2rem;">
+                MCP Server (PER/PBR/ROE/TSR/開示) の実行結果がここに表示されます。
+              </div>
+            </div>
+          </div>
+
+          <!-- Trace Tab -->
+          <div id="tab-trace" class="tab-content">
+            <div id="traceLog" class="code-font" style="font-size:0.75rem; color:var(--trace-text); line-height:1.6; background:var(--trace-bg); padding:0.75rem; border-radius:6px; border:1px solid var(--border-color); max-height:400px; overflow-y:auto;">
+              [System Initialized] Ready for queries.
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div>Production Financial Intelligence Engine &bull; LangGraph &bull; MCP Protocol &bull; Hybrid Search &bull; Fast SSE</div>
+    <div>Nikkei Reference Implementation &bull; f.0101.click</div>
+  </footer>
+
+  <script>
+    let currentDataSourceMode = 'snapshot';
+
+    // Theme Management
+    function initTheme() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      updateThemeButton(savedTheme);
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      updateThemeButton(next);
+      appendTrace(`Theme changed to: ${next.toUpperCase()}`);
+    }
+
+    function updateThemeButton(theme) {
+      const icon = document.getElementById('themeIcon');
+      const text = document.getElementById('themeText');
+      if (theme === 'light') {
+        icon.innerText = '🌙';
+        text.innerText = 'ダーク';
+      } else {
+        icon.innerText = '☀️';
+        text.innerText = 'ライト';
+      }
+    }
+
+    // Data Source Management
+    async function initSettings() {
+      try {
+        const res = await fetch('/api/v1/settings');
+        if (res.ok) {
+          const data = await res.json();
+          currentDataSourceMode = data.data_source_mode || 'snapshot';
+          updateModeUI(currentDataSourceMode);
+        }
+      } catch (e) {
+        console.warn('Failed to load settings:', e);
+      }
+    }
+
+    async function setDataSourceMode(mode) {
+      if (mode === currentDataSourceMode) return;
+      try {
+        const res = await fetch('/api/v1/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data_source_mode: mode })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          currentDataSourceMode = data.data_source_mode;
+          updateModeUI(currentDataSourceMode);
+          appendTrace(`Data Source switched to: ${currentDataSourceMode === 'live_api' ? '⚡ リアルタイムAPI (Live yfinance)' : '📦 最新スナップショット'}`);
+        }
+      } catch (e) {
+        alert('設定変更に失敗しました: ' + e.message);
+      }
+    }
+
+    function updateModeUI(mode) {
+      const btnSnap = document.getElementById('btnModeSnapshot');
+      const btnLive = document.getElementById('btnModeLive');
+      const badge = document.getElementById('currentSourceBadge');
+
+      if (mode === 'live_api') {
+        btnSnap.classList.remove('active');
+        btnLive.classList.add('active');
+        if (badge) {
+          badge.innerText = '⚡ リアルタイムAPI (yfinance)';
+          badge.className = 'source-badge live';
+        }
+      } else {
+        btnLive.classList.remove('active');
+        btnSnap.classList.add('active');
+        if (badge) {
+          badge.innerText = '📦 最新スナップショット';
+          badge.className = 'source-badge snapshot';
+        }
+      }
+    }
+
+    function setQuery(text) {
+      document.getElementById('queryInput').value = text;
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      if (event && event.target) {
+        event.target.classList.add('active');
+      }
+      const target = document.getElementById('tab-' + tabId);
+      if (target) target.classList.add('active');
+    }
+
+    function appendTrace(msg) {
+      const el = document.getElementById('traceLog');
+      const time = new Date().toISOString().substring(11, 19);
+      el.innerHTML += `<br>[${time}] ${msg}`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function resetPipelineSteps() {
+      ['step-query', 'step-search', 'step-mcp', 'step-synth', 'step-audit'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = 'step-item';
+      });
+    }
+
+    function setStep(id, state) {
+      const el = document.getElementById(id);
+      if (el) el.className = 'step-item ' + state;
+    }
+
+    async function startGeneration() {
+      const query = document.getElementById('queryInput').value.trim();
+      if (!query) return;
+
+      const submitBtn = document.getElementById('submitBtn');
+      const responseArea = document.getElementById('responseArea');
+      const auditCard = document.getElementById('auditCard');
+      const chunksList = document.getElementById('chunksList');
+      const mcpList = document.getElementById('mcpList');
+
+      submitBtn.disabled = true;
+      responseArea.innerHTML = "";
+      auditCard.style.display = "none";
+      chunksList.innerHTML = "";
+      mcpList.innerHTML = "";
+      resetPipelineSteps();
+      setStep('step-query', 'active');
+      appendTrace(`Starting query: "${query}" (Mode: ${currentDataSourceMode})`);
+
+      const startTime = performance.now();
+
+      try {
+        const response = await fetch('/api/v1/chat/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: query,
+            data_source_mode: currentDataSourceMode
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP Error: ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let done = false;
+        let eventType = "";
+
+        while (!done) {
+          const { value, done: readerDone } = await reader.read();
+          done = readerDone;
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split("\n");
+
+            for (const line of lines) {
+              if (line.startsWith("event: ")) {
+                eventType = line.substring(7).trim();
+              } else if (line.startsWith("data: ")) {
+                const dataStr = line.substring(6).trim();
+                if (!dataStr) continue;
+
+                try {
+                  const data = JSON.parse(dataStr);
+                  handleStreamEvent(eventType, data);
+                } catch(e) {
+                  // raw text fallback
+                }
+              }
+            }
+          }
+        }
+
+      } catch (err) {
+        responseArea.innerHTML = `<span style="color:var(--accent-rose);">エラーが発生しました: ${err.message}</span>`;
+        appendTrace(`Error: ${err.message}`);
+      } finally {
+        submitBtn.disabled = false;
+        const duration = Math.round(performance.now() - startTime);
+        document.getElementById('sessionTimer').innerText = `Done in ${duration}ms`;
+      }
+    }
+
+    function handleStreamEvent(eventType, data) {
+      const responseArea = document.getElementById('responseArea');
+
+      switch (eventType) {
+        case "query_analysis":
+          setStep('step-query', 'completed');
+          setStep('step-search', 'active');
+          appendTrace(`Query Rewritten: intent=${data.intent}, tickers=${JSON.stringify(data.target_tickers)}`);
+          break;
+
+        case "retrieval_done":
+          setStep('step-search', 'completed');
+          setStep('step-mcp', 'active');
+          appendTrace(`Hybrid Retrieval Done: ${data.chunks_count} chunks found`);
+          renderChunks(data.top_chunks || []);
+          break;
+
+        case "mcp_tools_done":
+          setStep('step-mcp', 'completed');
+          setStep('step-synth', 'active');
+          appendTrace(`MCP Tools Executed (${data.data_source_mode}): ${data.metrics_count} metrics loaded`);
+          renderMCPMetrics(data.metrics || []);
+          break;
+
+        case "token":
+          responseArea.innerHTML += data.delta;
+          highlightCitations(responseArea);
+          break;
+
+        case "citation_audit":
+          setStep('step-synth', 'completed');
+          setStep('step-audit', 'completed');
+          appendTrace(`Attribution Audit: Consistency=${((data.consistency_rate || 0) * 100).toFixed(1)}%`);
+          renderAuditReport(data);
+          break;
+
+        case "done":
+          appendTrace(`Execution finished in ${data.duration_ms} ms`);
+          break;
+      }
+    }
+
+    function highlightCitations(container) {
+      let text = container.innerHTML;
+      text = text.replace(/\[(doc_[a-zA-Z0-9_\-]+)\]/g, '<mark class="citation">[$1]</mark>');
+      text = text.replace(/\[(mcp_[a-zA-Z0-9_\-]+)\]/g, '<mark class="citation" style="background-color:rgba(245,158,11,0.22); color:#f59e0b; border-color:rgba(245,158,11,0.4);">[$1]</mark>');
+      container.innerHTML = text;
+    }
+
+    function renderChunks(chunks) {
+      const container = document.getElementById('chunksList');
+      container.innerHTML = "";
+      if (!chunks.length) {
+        container.innerHTML = "<div style='color:var(--text-muted); font-size:0.8rem; text-align:center; padding:1.5rem;'>関連チャンクがありません</div>";
+        return;
+      }
+
+      chunks.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'chunk-card';
+        div.innerHTML = `
+          <div class="chunk-header">
+            <span class="chunk-title">${c.title || c.id}</span>
+            <span class="chunk-score">RRF: ${c.rrf_score.toFixed(4)}</span>
+          </div>
+          <div class="chunk-text code-font">ID: [${c.id}]</div>
+        `;
+        container.appendChild(div);
+      });
+      document.getElementById('contextCounter').innerText = `${chunks.length} Chunks / MCP Ready`;
+    }
+
+    function renderMCPMetrics(metrics) {
+      const container = document.getElementById('mcpList');
+      container.innerHTML = "";
+      if (!metrics || !metrics.length) {
+        container.innerHTML = "<div style='color:var(--text-muted); font-size:0.8rem; text-align:center; padding:1.5rem;'>指標データがありません</div>";
+        return;
+      }
+
+      metrics.forEach(m => {
+        if (m.per !== undefined) {
+          const card = document.createElement('div');
+          card.className = 'mcp-card';
+          const isLive = m.data_source === 'yfinance_live' || (m.as_of_date && m.as_of_date.includes('Live'));
+          const statusColor = m.valuation_status === 'UNDERVALUED' ? 'var(--accent-green)' : (m.valuation_status === 'OVERVALUED' ? 'var(--accent-rose)' : 'var(--accent-blue)');
+          const trapColor = m.value_trap_risk === 'LOW' ? 'var(--accent-green)' : (m.value_trap_risk === 'HIGH' ? 'var(--accent-rose)' : 'var(--accent-amber)');
+
+          card.innerHTML = `
+            <div class="mcp-card-header">
+              <div>
+                <span class="mcp-ticker">${m.ticker}</span>
+                <span class="mcp-company">${m.company_name}</span>
+              </div>
+              <span class="mcp-source-tag ${isLive ? 'tag-live' : 'tag-snapshot'}">
+                ${isLive ? '⚡ Live yfinance' : '📦 Snapshot'}
+              </span>
+            </div>
+            <div class="mcp-grid">
+              <div class="mcp-stat"><span class="mcp-k">時価総額</span><span class="mcp-v">${m.market_cap_trillion_jpy} 兆円</span></div>
+              <div class="mcp-stat"><span class="mcp-k">PER</span><span class="mcp-v">${m.per} 倍</span></div>
+              <div class="mcp-stat"><span class="mcp-k">PBR</span><span class="mcp-v">${m.pbr} 倍</span></div>
+              <div class="mcp-stat"><span class="mcp-k">ROE</span><span class="mcp-v">${m.roe_percent}%</span></div>
+              <div class="mcp-stat"><span class="mcp-k">TSR</span><span class="mcp-v">${m.tsr_percent}%</span></div>
+              <div class="mcp-stat"><span class="mcp-k">配当利回り</span><span class="mcp-v">${m.dividend_yield_percent}%</span></div>
+            </div>
+            <div class="mcp-badges-row">
+              <span class="badge-status" style="color:${statusColor}; border-color:${statusColor};">${m.valuation_status}</span>
+              <span class="badge-status" style="color:${trapColor}; border-color:${trapColor};">Value Trap: ${m.value_trap_risk}</span>
+              <span class="mcp-date">${m.as_of_date || ''}</span>
+            </div>
+          `;
+          container.appendChild(card);
+        } else if (m.indicator) {
+          const card = document.createElement('div');
+          card.className = 'mcp-card macro-card';
+          const isLive = m.data_source === 'yfinance_live' || (m.source && m.source.includes('yfinance'));
+          card.innerHTML = `
+            <div class="mcp-card-header">
+              <span class="mcp-company">${m.indicator}</span>
+              <span class="mcp-source-tag ${isLive ? 'tag-live' : 'tag-snapshot'}">
+                ${isLive ? '⚡ Live' : '📦 Snapshot'}
+              </span>
+            </div>
+            <div style="font-size:1.15rem; font-weight:700; color:var(--accent-cyan); font-family:'JetBrains Mono',monospace; margin:0.3rem 0;">
+              ${m.value}
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">${m.trend}</div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.25rem;">提供: ${m.source} &bull; ${m.updated_at}</div>
+          `;
+          container.appendChild(card);
+        }
+      });
+    }
+
+    function renderAuditReport(report) {
+      const card = document.getElementById('auditCard');
+      card.style.display = "flex";
+      document.getElementById('auditVerdict').innerText = report.verdict || "PASS";
+      document.getElementById('auditCheckedAt').innerText = new Date().toLocaleTimeString();
+      document.getElementById('valConsistency').innerText = `${((report.consistency_rate || 0) * 100).toFixed(1)}%`;
+      document.getElementById('valPrecision').innerText = `${((report.precision || 0) * 100).toFixed(1)}%`;
+      document.getElementById('valRecall').innerText = `${((report.recall || 0) * 100).toFixed(1)}%`;
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      initSettings();
+    });
+  </script>
+</body>
+</html>

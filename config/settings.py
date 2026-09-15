@@ -23,9 +23,10 @@ class Settings(BaseModel):
     rrf_k: int = Field(default_factory=lambda: int(os.getenv("RRF_K", "60")))
     retrieval_top_k: int = Field(default_factory=lambda: int(os.getenv("RETRIEVAL_TOP_K", "5")))
 
-    # MCP Server
+    # MCP Server & Data Source
     mcp_server_name: str = "financial-tools-server"
     mcp_server_version: str = "1.0.0"
+    data_source_mode: str = Field(default_factory=lambda: os.getenv("DATA_SOURCE_MODE", "snapshot"))  # "snapshot" or "live_api"
 
     # Citation & Verification
     citation_min_confidence: float = Field(default_factory=lambda: float(os.getenv("CITATION_MIN_CONFIDENCE", "0.70")))
