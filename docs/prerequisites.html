@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>前提基礎知識ガイド | 金融特化型 RAG & 引用一致率監査エージェント</title>
+  <link rel="stylesheet" href="assets/docs.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%22100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="doc-header">
+    <a href="index.html" class="header-brand">
+      <div class="brand-icon">🧠</div>
+      <span>Financial RAG Engine</span>
+      <span class="brand-badge">基礎知識</span>
+    </a>
+
+    <nav class="header-nav">
+      <a href="index.html" class="nav-link">ポータル</a>
+      <a href="design.html" class="nav-link">詳細設計書</a>
+      <a href="user_manual.html" class="nav-link">運用マニュアル</a>
+      <a href="prerequisites.html" class="nav-link active">前提基礎知識</a>
+      <a href="kids_guide.html" class="nav-link">小学生向け解説</a>
+    </nav>
+
+    <div class="header-tools">
+      <button id="theme-toggle" class="theme-toggle-btn">☀️ ライト</button>
+      <a href="/" class="btn-terminal">🖥️ 金融端末 Showcase</a>
+    </div>
+  </header>
+
+  <!-- Container -->
+  <div class="doc-container">
+
+    <!-- Sidebar -->
+    <aside class="doc-sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">目次 (Table of Contents)</div>
+        <ul class="sidebar-menu">
+          <li class="sidebar-item"><a href="#sec-1">1. はじめに</a></li>
+          <li class="sidebar-item"><a href="#sec-2">2. 金融×LLM 固有の課題</a></li>
+          <li class="sidebar-item"><a href="#sec-3">3. LangGraph の数理・状態機械</a></li>
+          <li class="sidebar-item"><a href="#sec-4">4. Model Context Protocol (MCP)</a></li>
+          <li class="sidebar-item"><a href="#sec-5-1">5.1 BM25 vs ベクトル検索</a></li>
+          <li class="sidebar-item"><a href="#sec-5-2">5.2 RRF 順位融合の数理</a></li>
+          <li class="sidebar-item"><a href="#sec-6">6. 引用帰属と Eval 指標理論</a></li>
+          <li class="sidebar-item"><a href="#sec-7-1">7.1 PER / PBR 是正要請</a></li>
+          <li class="sidebar-item"><a href="#sec-7-2">7.2 ROE 8% / TSR</a></li>
+          <li class="sidebar-item"><a href="#sec-7-3">7.3 バリュートラップ検知</a></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">関連リソース</div>
+        <ul class="sidebar-menu">
+          <li class="sidebar-item"><a href="design.html">📐 システム詳細設計書</a></li>
+          <li class="sidebar-item"><a href="user_manual.html">🛠️ 運用手順書</a></li>
+          <li class="sidebar-item"><a href="kids_guide.html">🦉 物語で読む解説</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Article -->
+    <main class="doc-main">
+      <article class="doc-article">
+
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <span class="badge badge-purple">Domain & Architecture Knowledge</span>
+          <span class="badge badge-blue">RRF / BM25 / TSE Valuation</span>
+        </div>
+
+        <h1>金融特化型 RAG & 引用一致率監査エージェント 前提基礎知識ガイド</h1>
+        <p style="font-size: 16px; color: var(--text-sub);">
+          Fundamental Knowledge & Concepts Guide | LLM オーケストレーションと財務工学の交差点
+        </p>
+
+        <hr>
+
+        <!-- Section 1 -->
+        <h2 id="sec-1">1. はじめに</h2>
+        <p>
+          本システム（<code>financial-rag-agent</code>）は、<strong>最先端の生成 AI / LLM オーケストレーション技術</strong>と<strong>厳密な金融・財務工学のドメイン知識</strong>が交差する領域に位置しています。
+        </p>
+        <p>
+          本書は、本システムの設計意図、ソースコードの内部構造、および評価指標を深く理解し、保守・拡張・評価を行うために必要な前提基礎知識を体系的に解説したエンジニア向け知識ベースです。
+        </p>
+
+        <hr>
+
+        <!-- Section 2 -->
+        <h2 id="sec-2">2. 金融×LLM システムにおける固有の課題</h2>
+        <h3>2.1 なぜ「一般的な RAG」は金融実務で破綻するのか？</h3>
+        <p>
+          一般的な社内文書検索やチャットボットでは、「大体合っている要約」が得られれば及第点とされます。しかし、<strong>経済メディア（日経新聞等）の読者や金融機関のディーラー、ファンドマネージャー、経営企画部門</strong>を対象とするサービスでは、小さな誤謬が重大な誤認や投資損失、コンプライアンス違反に直結します。
+        </p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>課題項目</th>
+                <th>一般的な RAG の挙動</th>
+                <th>金融実務で求められる厳密性</th>
+                <th>本システムのアプローチ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>数値の厳密性</strong></td>
+                <td>「約5兆円」「大幅な増益」など大雑把に要約</td>
+                <td>「5兆3529億円」（1円単位、100万円単位の正確性）</td>
+                <td>CJK数値特化トークナイズ + BM25 で厳格に数値を照合</td>
+              </tr>
+              <tr>
+                <td><strong>会計期間の識別</strong></td>
+                <td>2023年3月期と2024年3月期、通期と四半期を混同</td>
+                <td>会計年度（FY）、第Q（四半期）、本決算の完全な区別</td>
+                <td>メタデータフィルタリング + 意図分類による Query Rewrite</td>
+              </tr>
+              <tr>
+                <td><strong>根拠の透明性</strong></td>
+                <td>「一般的な情報によれば…」と出所が曖昧</td>
+                <td>記事ID、開示日時、発表元の完全なトレーサビリティ</td>
+                <td>すべての主張文に対する <code>[doc_X]</code> 引用付与と一致率監査</td>
+              </tr>
+              <tr>
+                <td><strong>ハルシネーション</strong></td>
+                <td>自信満々に架空の数値を創作（10〜20%混入）</td>
+                <td>許容誤差 0%（ゼロ・ハルシネーション原則）</td>
+                <td>引用監査不合格時の自己修正（Self-Correction）ループ</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <hr>
+
+        <!-- Section 3 -->
+        <h2 id="sec-3">3. エージェントオーケストレーション技術の基礎</h2>
+        <h3>3.1 従来の Linear Chain と LangGraph（有向グラフ）の相違</h3>
+        <p>
+          初期の LLM アプリケーション（直列パイプライン A &rarr; B &rarr; C）では、生成された文に幻覚や引用ミスがあってもそのまま出力されてしまいました。実用的な金融エージェントには、<strong>監査結果に応じた「循環（Cycles）」、意図に応じた「分岐（Branching）」、単一の信頼できる状態管理（State）</strong>が必須です。
+        </p>
+
+        <div class="mermaid-container">
+          <pre class="mermaid">
+flowchart LR
+    subgraph 従来の直列パイプライン
+        A1["入力"] --> A2["検索"] --> A3["生成"] --> A4["出力 (誤りがあっても止まらない)"]
+    end
+          </pre>
+        </div>
+
+        <div class="mermaid-container">
+          <pre class="mermaid">
+flowchart TD
+    subgraph 本システムの_LangGraph_状態マシン
+        B1["ユーザー入力"] --> B2["クエリ改写 & 意図分類"]
+        B2 --> B3["ハイブリッド検索 (RRF)"]
+        B3 --> B4["MCP 財務ツール実行"]
+        B4 --> B5["グラウンデッド回答生成"]
+        B5 --> B6["文単位引用一致率監査"]
+        B6 --> B7{"一致率 >= 70% ?"}
+        B7 -- "合格 (PASS)" --> B8["ストリーミング確定 & チェックポイント永続化"]
+        B7 -- "不合格 (再試行 < 2回)" --> B5
+    end
+          </pre>
+        </div>
+
+        <hr>
+
+        <!-- Section 4 -->
+        <h2 id="sec-4">4. Model Context Protocol (MCP) の基礎</h2>
+        <h3>4.1 なぜ REST API 直接呼び出しではなく MCP なのか？</h3>
+        <ul>
+          <li><strong>疎結合性と再利用性</strong>: 財務指標の計算ロジック（PER、PBR、バリュートラップ検出等）を独立した MCP サーバーとして分離することで、CLI、Web UI、LangGraph エージェント、外部システムから同一のツール定義を共有可能。</li>
+          <li><strong>コンテキストの自律的発見</strong>: LLM は MCP の提供する JSON Schema 仕様に基づき、どのようなツールが存在し、どの引数を渡すべきかをプロンプト外から標準化された手段で取得・実行。</li>
+          <li><strong>セキュリティと境界防御</strong>: LLM エージェントにデータベースへの直接アクセス権や環境変数を与えず、MCP サーバーの境界越しに安全に処理を実行。</li>
+        </ul>
+
+        <hr>
+
+        <!-- Section 5 -->
+        <h2>5. 金融ドメイン向け検索技術（Information Retrieval）</h2>
+
+        <h3 id="sec-5-1">5.1 スパース検索（BM25） vs デンス検索（Dense Vector）</h3>
+        <p>
+          RAG の検索層において、どちらか一方だけでは金融ドメインの要求を満たせません：
+        </p>
+        <ul>
+          <li><strong>スパース検索 (BM25 Okapi)</strong>: 「7203」「5兆3529億円」など、1文字のブレも許されない完全一致キーワードを確実に上位へ引き上げる。</li>
+          <li><strong>デンス検索 (Dense Vector)</strong>: 「電動化の行方」という質問に対して、「BEV投資」「電池工場新設」といった意味的同義語・文脈を捉える。</li>
+        </ul>
+
+        <h3 id="sec-5-2">5.2 Reciprocal Rank Fusion (RRF) のメカニズム</h3>
+        <p>
+          BM25 の対数オッズ比スコアと、ベクトルのコサイン類似度はスケールが全く異なります。RRF は「順位（Rank）」のみを用いて頑健に統合します：
+        </p>
+        <div class="callout callout-info">
+          <div class="callout-title">📐 RRF 順位融合計算式</div>
+          <p style="font-family: var(--font-mono); font-size: 15px; text-align: center; margin: 10px 0;">
+            RRF(d) = ∑ [ 1 / (k + rank_m(d)) ]  (m ∈ {BM25, Dense})
+          </p>
+          <p style="font-size: 13px; margin: 0;">
+            平滑化定数 $k = 60$ を採用。片方の検索器で圧倒的 1 位になったドキュメントを確実に上位へ引き上げます。
+          </p>
+        </div>
+
+        <hr>
+
+        <!-- Section 6 -->
+        <h2 id="sec-6">6. 引用帰属（Citation Attribution）と評価指標（Eval）</h2>
+        <p>
+          日经新闻社等の採用基準で最も重視されるのが、「引用の精度をどう定義し、どう自動測定するか」です。
+        </p>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>指標名</th>
+                <th>数学的定義</th>
+                <th>業務的意味</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>引用一致率 (Consistency Rate)</strong></td>
+                <td>整合文数 / 引用タグ付き総文数</td>
+                <td>モデルが根拠として挙げた文献の中に、主張した数値・事実が本当に存在するか。</td>
+              </tr>
+              <tr>
+                <td><strong>引用適合率 (Citation Precision)</strong></td>
+                <td>裏付け正当引用数 / 総引用タグ数</td>
+                <td>無関係な文献を適当に引用する「見せかけ引用（Ghost Citation）」の排除。</td>
+              </tr>
+              <tr>
+                <td><strong>引用再現率 (Citation Recall)</strong></td>
+                <td>引用済み重要事実数 / 全重要事実数</td>
+                <td>客観的数値を語っているにもかかわらず根拠を添えない「未根拠記述」の検出。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <hr>
+
+        <!-- Section 7 -->
+        <h2>7. 日本の金融実務・財務指標の基礎知識</h2>
+
+        <h3 id="sec-7-1">7.1 PER / PBR と東証の是正要請</h3>
+        <div class="callout callout-warning">
+          <div class="callout-title">🏢 東京証券取引所の「PBR 1倍割れ是正要請」</div>
+          <p>
+            2023年春以降、東証はプライム・スタンダード上場企業に対し「資本コストや株価を意識した経営の実現」を強く要請。PBRが1倍を下回る状態は「会社を解散して資産を分けた方がマシ」と投資家に評価されていることを意味し、自社株買い、増配、事業再編を通じた PBR 1倍超えが至上命題となっています。
+          </p>
+        </div>
+
+        <h3 id="sec-7-2">7.2 ROE「伊藤レポート基準」と TSR</h3>
+        <ul>
+          <li><strong>ROE（自己資本利益率）</strong>: 経済産業省の「伊藤レポート（2014年）」以来、日本企業がグローバル投資家を引きつける最低目標ラインとして<strong>「ROE 8%以上」</strong>が定着。</li>
+          <li><strong>TSR（株主総利回り）</strong>: 株価の値上がり益（キャピタルゲイン）＋ 配当金（インカムゲイン）の総合的な還元率を示す。</li>
+        </ul>
+
+        <h3 id="sec-7-3">7.3 バリュートラップ（Value Trap: 割安の罠）検知アルゴリズム</h3>
+        <p>
+          「PBRが0.6倍で一見割安に見えるが、何年経っても株価が上がらない」企業を自動検知します。
+        </p>
+        <div class="callout callout-danger">
+          <div class="callout-title">⚠️ 本システムのバリュートラップ判定ルール</div>
+          <p style="font-family: var(--font-mono); margin: 6px 0;">
+            if PBR &lt; 0.8倍 and ROE &lt; 5.0%: -> 【Value Trap Risk (割安の罠リスク検知)】
+          </p>
+          <p style="font-size: 13px; margin: 0;">
+            資本収益性が極めて低く、内部留保を溜め込んだまま成長投資や株主還元を怠っている企業に対し、単なる「割安」ではなくリスク警告を発出します。
+          </p>
+        </div>
+
+      </article>
+    </main>
+
+  </div>
+
+  <footer style="text-align: center; padding: 40px 24px; border-top: 1px solid var(--border-color); color: var(--text-sub); font-size: 13px;">
+    Financial RAG & Citation Attribution Agent &copy; 2026 Hyperion. Nikkei Technical Showcase Reference Project.
+  </footer>
+
+  <script src="assets/docs.js"></script>
+</body>
+</html>

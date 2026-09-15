@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小学生でもわかる！金融AIきしゃ「ハイペリオン」のぼうけん</title>
+  <link rel="stylesheet" href="assets/docs.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%22100%22><text y=%22.9em%22 font-size=%2290%22>🦉</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="doc-header">
+    <a href="index.html" class="header-brand">
+      <div class="brand-icon">🦉</div>
+      <span>Financial RAG Engine</span>
+      <span class="brand-badge">小学生向け解説</span>
+    </a>
+
+    <nav class="header-nav">
+      <a href="index.html" class="nav-link">ポータル</a>
+      <a href="design.html" class="nav-link">詳細設計書</a>
+      <a href="user_manual.html" class="nav-link">運用マニュアル</a>
+      <a href="prerequisites.html" class="nav-link">前提基礎知識</a>
+      <a href="kids_guide.html" class="nav-link active">小学生向け解説</a>
+    </nav>
+
+    <div class="header-tools">
+      <button id="theme-toggle" class="theme-toggle-btn">☀️ ライト</button>
+      <a href="/" class="btn-terminal">🖥️ 金融端末 Showcase</a>
+    </div>
+  </header>
+
+  <!-- Container -->
+  <div class="doc-container">
+
+    <!-- Sidebar -->
+    <aside class="doc-sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">おはなしの目次</div>
+        <ul class="sidebar-menu">
+          <li class="sidebar-item"><a href="#prologue">プロローグ：ふしぎな記者</a></li>
+          <li class="sidebar-item"><a href="#chapter-1">第1章：会社のつうちひょう</a></li>
+          <li class="sidebar-item"><a href="#chapter-2">第2章：ふたつの虫眼鏡</a></li>
+          <li class="sidebar-item"><a href="#chapter-3">第3章：プロの電卓ツール箱</a></li>
+          <li class="sidebar-item"><a href="#chapter-4">第4章：鬼編集長のチェック</a></li>
+          <li class="sidebar-item"><a href="#chapter-5">第5章：夜に働くこびとたち</a></li>
+          <li class="sidebar-item"><a href="#epilogue">エピローグ：ハルキくんの夢</a></li>
+          <li class="sidebar-item"><a href="#dictionary">【おさらい】かんたん辞書</a></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">ほかのドキュメント</div>
+        <ul class="sidebar-menu">
+          <li class="sidebar-item"><a href="design.html">📐 プロ向け詳細設計書</a></li>
+          <li class="sidebar-item"><a href="user_manual.html">🛠️ 運用マニュアル</a></li>
+          <li class="sidebar-item"><a href="index.html">📚 ポータルへもどる</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="doc-main">
+      <article class="doc-article">
+
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <span class="badge badge-yellow">対象: 小学生〜大人まで</span>
+          <span class="badge badge-blue">読了目安: 約10分</span>
+          <span class="badge badge-green">完全図解</span>
+        </div>
+
+        <h1>小学生でもわかる！金融AIきしゃ「ハイペリオン」のぼうけん</h1>
+        <p style="font-size: 16px; color: var(--text-sub);">
+          〜 うそをつかない、まほうのしんぶんきしゃのひみつ 〜
+        </p>
+
+        <hr>
+
+        <!-- Prologue -->
+        <h2 id="prologue">プロローグ：世界一大きな「お祭りのまち」と、ふしぎな記者</h2>
+        <p>
+          いま、みんながくらしている世界の真ん中に、<strong>「マーケット（市場）」</strong>という名前の、世界一大きくてにぎやかな「お祭りのまち」がありました。
+        </p>
+        <p>
+          そのまちには、みんなが大好きなゲームをつくる会社、かっこいい自動車をつくる会社、おいしいお菓子をつくる会社など、何千ものお店がならんでいます。
+        </p>
+        <p>
+          ある日の放課後、ゲームが大好きな小学5年生の男の子「ハルキくん」は、じぶんのお小遣いで大好きなゲーム会社の「おうえんチケット（株）」を買ってみたいと思いました。
+        </p>
+
+        <!-- Dialogue 1 -->
+        <div class="story-character">
+          <div class="avatar-bubble avatar-boy">👦</div>
+          <div class="speech-bubble">
+            <div class="speaker-name" style="color: #3b82f6;">ハルキくん（小学5年生）</div>
+            「でも、ぼくの好きな会社は、ことしちゃんと黒字（もうけ）を出せたのかな？ 友だちに聞いたら『AIに聞けばなんでも教えてくれるよ！』って言ってたけど……AIって、たまに<strong>知ったかぶりして大ウソをつく</strong>ことがあるって先生が言ってたしなぁ……」
+          </div>
+        </div>
+
+        <p>こまっているハルキくんのまえに、金色の丸メガネをかけ、胸に万年筆をさした、かっこいいフクロウのAI記者があらわれました。</p>
+
+        <!-- Dialogue 2 -->
+        <div class="story-character">
+          <div class="avatar-bubble avatar-owl">🦉</div>
+          <div class="speech-bubble">
+            <div class="speaker-name" style="color: #f59e0b;">ハイペリオン（スーパーAI記者）</div>
+            「こんにちは、ハルキくん！ ぼくの名前は<strong>『ハイペリオン（Hyperion）』</strong>。日本経済新聞のニュースや、会社の金庫の数字をぜんぶ調べて、<strong>『絶対にウソをつかない記事』</strong>をかくスーパーAI記者だよ！ ぼくの頭の中にある5つの秘密の道具を見せてあげるよ！」
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- Chapter 1 -->
+        <h2 id="chapter-1">第1章：会社の「つうちひょう」ってなに？（株と決算）</h2>
+        <div class="story-character">
+          <div class="avatar-bubble avatar-boy">👦</div>
+          <div class="speech-bubble">
+            <div class="speaker-name" style="color: #3b82f6;">ハルキくん</div>
+            「ハイペリオン、そもそも『会社の数字を調べる』ってどういうこと？」
+          </div>
+        </div>
+
+        <div class="story-character">
+          <div class="avatar-bubble avatar-owl">🦉</div>
+          <div class="speech-bubble">
+            <div class="speaker-name" style="color: #f59e0b;">ハイペリオン</div>
+            「学校で学期のおわりに<strong>『つうちひょう』</strong>をもらうよね？ 実は、大人の会社も1年に何回か、つうちひょうを発表するんだ。これを<strong>『決算（けっさん）』</strong>と呼ぶよ。<br><br>
+            ・<strong>うりあげ（売上高）</strong>: 1年間にいくらモノが売れたか？<br>
+            ・<strong>りえき（営業利益）</strong>: かかったお金をひいて、いくら手元に残ったか？<br><br>
+            もしAI記者が適当に『1000兆円もうかりました！』なんてデタラメを書いたら、みんなダマされて大損しちゃうよね。だから、お金の世界では<strong>『たった1つの数字のまちがい』も絶対に許されない</strong>んだ！」
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- Chapter 2 -->
+        <h2 id="chapter-2">第2章：秘密の道具①「名探偵のふたつの虫眼鏡」（ハイブリッド検索）</h2>
+        <p>
+          ふつうのAIは頭の中のあやふやな記憶だけでおしゃべりするから、ウソ（幻覚）をついてしまいます。ハイペリオンは記事をかくまえに、必ず巨大な図書館（コーパス）へ走って、本物の新聞記事をさがします。
+        </p>
+
+        <div class="mermaid-container">
+          <pre class="mermaid">
+flowchart LR
+    subgraph 二大探偵 ["ふたつの虫眼鏡（ハイブリッド検索）"]
+        Inu["🐶 警察犬『BM25』\n（数字やコードの完全一致をかぎつける！）"]
+        Washi["🦅 ワシの目『ベクトル』\n（『エコ』と『電気自動車』のような\n意味の似ている言葉を見つける！）"]
+    end
+    
+    Q["ハルキくんの質問\n『トヨタの営業利益は？』"] --> Inu & Washi
+    Inu & Washi --> RRF["合体魔法『RRF』\n両方が『これだ！』と指さした\n最高の新聞記事をえらびだす！"]
+          </pre>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-title">🔍 ふたつの虫眼鏡のひみつ</div>
+          <ul>
+            <li><strong>🐶 警察犬の虫眼鏡「BM25（ビーエム25）」</strong>: 「トヨタ」の番号（7203）や「5兆3529億円」といった数字を1文字もまちがえずに嗅ぎつける！</li>
+            <li><strong>🦅 ワシの目の虫眼鏡「ベクトル（Dense Vector）」</strong>: 「電気自動車」と「バッテリー」のように、言葉はちがうけれど意味が似ている記事を空から見つける！</li>
+          </ul>
+        </div>
+
+        <hr>
+
+        <!-- Chapter 3 -->
+        <h3 id="chapter-3">第3章：秘密の道具②「プロの電卓ツール箱」（MCP：モデル・コンテキスト・プロトコル）</h3>
+        <p>
+          「いまの株価ってお買い得なの？」を計算するために、ハイペリオンは<strong>「MCP（エム・シー・ピー）」</strong>という秘密の電卓ツール箱を取り出します。
+        </p>
+
+        <div class="story-character">
+          <div class="avatar-bubble avatar-owl">🦉</div>
+          <div class="speech-bubble">
+            <div class="speaker-name" style="color: #f59e0b;">ハイペリオン</div>
+            「AIが自分の頭で適当に暗算すると間違えちゃうからね。ぼくは専用の電卓に数字を入れてピピッとはじくんだ！<br><br>
+            ・<strong>お買い得メーター (PER)</strong>: 会社のかせぐ力にくらべてチケットが安いか？<br>
+            ・<strong>金庫の中身メーター (PBR)</strong>: 会社の貯金にくらべて株がお得か？<br>
+            ・<strong>なまけもの警報 (バリュートラップ)</strong>: 『安く見えるけど実はやる気がないサボり会社』をピピッ！と見破る！」
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- Chapter 4 -->
+        <h2 id="chapter-4">第4章：秘密の道具③「ウソつき絶対見破りカメラ」（引用一致率チェッカー）</h2>
+        <p>記事の下書きができたら、世界一きびしい<strong>「鬼編集長（おにへんしゅうちょう）」</strong>の赤ペンチェックが待っています！</p>
+
+        <div class="callout callout-danger" style="background: var(--bg-surface); border-left: 4px solid #ef4444;">
+          <div style="display: flex; gap: 12px; align-items: flex-start;">
+            <div style="font-size: 36px;">👹</div>
+            <div>
+              <div style="font-weight: 700; font-size: 15px; color: #ef4444; margin-bottom: 6px;">【鬼編集長の赤ペンチェック！】</div>
+              <p style="font-family: var(--font-mono); font-size: 13.5px; margin: 0; line-height: 1.6;">
+                「おいハイペリオン！ 最初の文に [doc_01] って書いてあるな！ 図書館から取ってきた新聞記事を見せてみろ！<br>
+                ……ふむ。『トヨタの営業利益は5兆3529億円』と書いてあるな。よし！ 数字も社名も1文字も狂いがない！ <strong>【一致率 100%（合格！）】</strong><br><br>
+                もしウソが混ざって一致率が 70% 未満だったら……<strong>『やり直し！ 図書館の記事をもう一度よく読んで、正しく書き直してこい！』</strong>」
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="story-character">
+          <div class="avatar-bubble avatar-boy">👦</div>
+          <div class="speech-bubble">
+            <div class="speaker-name" style="color: #3b82f6;">ハルキくん</div>
+            「わぁ……！ 合格するまで書き直すんだね！ だからハイペリオンの記事は絶対にウソがないんだ！」
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- Chapter 5 -->
+        <h2 id="chapter-5">第5章：夜のあいだに働くこびとたち（深夜のバッチ処理）</h2>
+        <p>
+          夕方3時に東京証券取引所が閉まると、何百社もの会社がいっせいに決算を発表します。
+          ハイペリオンは<strong>「夜警団のこびとたち（非同期バッチ）」</strong>に変身し、4人チームで手分けして徹夜で書類を読み、朝の新聞ができるまえに完璧な成績表を完成させます。
+        </p>
+
+        <hr>
+
+        <!-- Epilogue -->
+        <h2 id="epilogue">エピローグ：ハルキくんの夢と、これからの世界</h2>
+        <div class="story-character">
+          <div class="avatar-bubble avatar-boy">👦</div>
+          <div class="speech-bubble">
+            <div class="speaker-name" style="color: #3b82f6;">ハルキくん</div>
+            「すごいなぁ、ハイペリオン！ ぼく、大好きな会社がどれだけがんばっているか本当のことがわかったよ！ 自信をもってお小遣いで応援チケット（株）を買ってみるね！」
+          </div>
+        </div>
+
+        <div class="story-character">
+          <div class="avatar-bubble avatar-owl">🦉</div>
+          <div class="speech-bubble">
+            <div class="speaker-name" style="color: #f59e0b;">ハイペリオン</div>
+            「いってらっしゃい、ハルキくん！ きみが大人になって世界を変える大きな会社をつくるときも、ぼくが一番正しいニュースを世界中に届けてあげるからね！」
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- Dictionary -->
+        <h2 id="dictionary">【おさらい】ハイペリオンの5大ひみつ・かんたん辞書</h2>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>むずかしい言葉</th>
+                <th>ハイペリオン流のたとえ</th>
+                <th>なぜすごいの？</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>RAG（ラグ）</strong></td>
+                <td><strong>魔法の図書館ダッシュ</strong></td>
+                <td>自分の頭のあやふやな記憶で適当にしゃべらず、本物の新聞を読みにいく！</td>
+              </tr>
+              <tr>
+                <td><strong>BM25 + ベクトル (RRF)</strong></td>
+                <td><strong>警察犬 ＋ ワシの目</strong></td>
+                <td>数字の完全一致と、意味の近さを両方見逃さない！</td>
+              </tr>
+              <tr>
+                <td><strong>MCP（エム・シー・ピー）</strong></td>
+                <td><strong>プロの電卓ツール箱</strong></td>
+                <td>AIのあやふやな暗算をやめ、東証の公式電卓でピピッとはじく！</td>
+              </tr>
+              <tr>
+                <td><strong>引用一致率（Citation）</strong></td>
+                <td><strong>鬼編集長の赤ペンチェック</strong></td>
+                <td>1文ごとに「どの本のどこに書いてあるか」を証明し、ウソを絶対に許さない！</td>
+              </tr>
+              <tr>
+                <td><strong>LangGraph（状態マシン）</strong></td>
+                <td><strong>書き直しOKの作戦ノート</strong></td>
+                <td>まちがえたら自動でステップを戻り、100点満点になるまで再挑戦する！</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </article>
+    </main>
+
+  </div>
+
+  <footer style="text-align: center; padding: 40px 24px; border-top: 1px solid var(--border-color); color: var(--text-sub); font-size: 13px;">
+    Financial RAG & Citation Attribution Agent &copy; 2026 Hyperion. Nikkei Technical Showcase Reference Project.
+  </footer>
+
+  <script src="assets/docs.js"></script>
+</body>
+</html>

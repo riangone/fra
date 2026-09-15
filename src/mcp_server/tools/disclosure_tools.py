@@ -2,7 +2,7 @@
 
 from typing import Dict, Any, List, Optional
 from src.models.finance import DisclosureItem, MacroIndicator
-from src.mcp_server.tools.live_market_client import fetch_live_macro_indicators
+from src.mcp_server.tools.live_market_client import fetch_live_macro_indicators, fetch_live_disclosure
 from config.settings import settings
 
 DISCLOSURES_DATABASE: Dict[str, DisclosureItem] = {
@@ -81,8 +81,19 @@ MACRO_INDICATORS: List[MacroIndicator] = [
 
 
 def get_financial_disclosure(ticker: str, mode: Optional[str] = None) -> Dict[str, Any]:
-    """Retrieve the latest financial disclosures and earnings report for a given ticker."""
+    """Retrieve the latest financial disclosures and earnings report for a given ticker.
+
+    Supports both 'snapshot' (deterministic 2024/2025 benchmark) and 'live_api'
+    (yfinance latest reported fiscal-year income statement) modes.
+    """
     clean_ticker = ticker.strip().upper().replace(".T", "")
+    active_mode = mode or settings.data_source_mode
+
+    if active_mode == "live_api":
+        live_res = fetch_live_disclosure(clean_ticker)
+        if "error" not in live_res and not live_res.get("fallback_needed"):
+            return live_res
+
     item = DISCLOSURES_DATABASE.get(clean_ticker)
     if not item:
         return {

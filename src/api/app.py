@@ -41,6 +41,10 @@ app.include_router(router)
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+DOCS_DIR = Path(__file__).parents[2] / "docs"
+if DOCS_DIR.exists():
+    app.mount("/docs-ja", StaticFiles(directory=str(DOCS_DIR), html=True), name="docs-ja")
+
 
 @app.api_route("/", methods=["GET", "HEAD"])
 async def root(request: Request):

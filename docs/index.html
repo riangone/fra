@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>技術ドキュメント体系 | 金融特化型 RAG & 引用一致率監査エージェント</title>
+  <link rel="stylesheet" href="assets/docs.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%22100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="doc-header">
+    <a href="index.html" class="header-brand">
+      <div class="brand-icon">📊</div>
+      <span>Financial RAG Engine</span>
+      <span class="brand-badge">Nikkei Spec</span>
+    </a>
+
+    <nav class="header-nav">
+      <a href="index.html" class="nav-link active">ポータル</a>
+      <a href="design.html" class="nav-link">詳細設計書</a>
+      <a href="user_manual.html" class="nav-link">運用マニュアル</a>
+      <a href="prerequisites.html" class="nav-link">前提基礎知識</a>
+      <a href="kids_guide.html" class="nav-link">小学生向け解説</a>
+    </nav>
+
+    <div class="header-tools">
+      <button id="theme-toggle" class="theme-toggle-btn">☀️ ライト</button>
+      <a href="/" class="btn-terminal">🖥️ 金融端末 Showcase</a>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="doc-container" style="max-width: 1200px; padding: 48px 24px;">
+    <main style="width: 100%;">
+      
+      <!-- Hero Section -->
+      <div style="text-align: center; max-width: 840px; margin: 0 auto 48px auto;">
+        <div style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px; border-radius: 9999px; background: var(--brand-light); border: 1px solid var(--border-color); font-size: 13px; font-weight: 600; color: var(--brand-primary); margin-bottom: 20px;">
+          🚀 日本経済新聞社（Nikkei）法人サービス基準のエンタープライズ品質
+        </div>
+        <h1 style="font-size: 38px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 20px; line-height: 1.3;">
+          金融特化型 RAG & 引用一致率監査エージェント<br>日本語技術ドキュメント体系
+        </h1>
+        <p style="font-size: 17px; color: var(--text-muted); line-height: 1.7;">
+          日本経済新聞社の生成 AI 活用基盤を想定し、LangGraph 状態マシン・Model Context Protocol (MCP)・ハイブリッド RRF 検索・文単位の引用一致率監査（Citation Attribution）を統合したプロダクション品質リファレンス実装の公式解説ドキュメントです。
+        </p>
+      </div>
+
+      <!-- Quick Metrics Banner -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 48px;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center;">
+          <div style="font-size: 28px; font-weight: 800; color: var(--brand-primary);">93.3%</div>
+          <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">引用一致率 (Consistency Rate)</div>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center;">
+          <div style="font-size: 28px; font-weight: 800; color: var(--accent-green);">100%</div>
+          <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">Golden Eval Hit Rate@3</div>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center;">
+          <div style="font-size: 28px; font-weight: 800; color: var(--accent-purple);">&lt; 35ms</div>
+          <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">P95 推論レイテンシ (Cache)</div>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center;">
+          <div style="font-size: 28px; font-weight: 800; color: var(--accent-yellow);">18 / 18</div>
+          <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">CI 回帰テスト合格数 (pytest)</div>
+        </div>
+      </div>
+
+      <!-- Documentation Portal Cards -->
+      <h2 style="font-size: 22px; font-weight: 700; margin-bottom: 20px;">📚 公開ドキュメント一覧</h2>
+      <div class="portal-grid">
+
+        <!-- Card 1: Design -->
+        <a href="design.html" class="portal-card">
+          <div class="card-icon">📐</div>
+          <div class="card-title">システム詳細設計書</div>
+          <div class="card-desc">
+            LangGraph 5ノード有向グラフ状態マシン、MCP 独立ツール連携、CJK Bi-gram + 金融数値 BM25 & Dense RRF 融合、文単位引用一致率数理モデル、FastAPI SSE ストリーミング、Datadog 可観測性の完全なアーキテクチャ設計。
+          </div>
+          <div class="card-meta">
+            <span>対象: アーキテクト / 開発エンジニア</span>
+            <span class="badge badge-blue">約 20 分</span>
+          </div>
+        </a>
+
+        <!-- Card 2: User Manual -->
+        <a href="user_manual.html" class="portal-card">
+          <div class="card-icon">🛠️</div>
+          <div class="card-title">利用マニュアル・運用手順書</div>
+          <div class="card-desc">
+            Ubuntu 上でのセットアップ、systemd 常駐デーモン管理、Caddy リバースプロキシ設定、Web Showcase 金融端末の操作手順、全 API 仕様 (SSE / REST / Hot-Reload)、夜間適時開示バッチ、CI 評価実行手順。
+          </div>
+          <div class="card-meta">
+            <span>対象: インフラ / 運用者 / 利用者</span>
+            <span class="badge badge-green">約 15 分</span>
+          </div>
+        </a>
+
+        <!-- Card 3: Prerequisites -->
+        <a href="prerequisites.html" class="portal-card">
+          <div class="card-icon">🧠</div>
+          <div class="card-title">前提基礎知識ガイド</div>
+          <div class="card-desc">
+            なぜ一般 RAG が金融実務で破綻するのか、Linear Chain に対する LangGraph の優位性、MCP 規格の意義、BM25 vs ベクトルの四象限分布、東証 PBR 1倍割れ是正要請・伊藤レポート ROE 8%・バリュートラップの数理的背景。
+          </div>
+          <div class="card-meta">
+            <span>対象: ドメイン学習者 / 面接対策</span>
+            <span class="badge badge-purple">約 15 分</span>
+          </div>
+        </a>
+
+        <!-- Card 4: Kids Guide -->
+        <a href="kids_guide.html" class="portal-card">
+          <div class="card-icon">🦉</div>
+          <div class="card-title">小学生向け物語型解説</div>
+          <div class="card-desc">
+            「小学生でもわかる！金融AIきしゃハイペリオンのぼうけん」。小学5年生のハルキくんとAIフクロウ記者が、会社のつうちひょう（決算）、名探偵のふたつの虫眼鏡、プロの電卓、鬼編集長の赤ペンチェックを探検する物語。
+          </div>
+          <div class="card-meta">
+            <span>対象: 小学生 〜 ビジネス初学者</span>
+            <span class="badge badge-yellow">約 10 分</span>
+          </div>
+        </a>
+
+      </div>
+
+      <!-- Architecture Highlights -->
+      <div style="margin-top: 56px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 32px;">
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 16px; color: var(--text-main);">⚡ 本システムの主要技術スタック</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+          <div>
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--brand-primary);">1. LangGraph オーケストレーション</h4>
+            <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
+              <code>StateGraph</code> による状態追従、引用一致率が 70% を下回った場合の条件付きエッジ（<code>should_retry</code>）による自動自己修正ループ。
+            </p>
+          </div>
+          <div>
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--accent-green);">2. Model Context Protocol (MCP)</h4>
+            <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
+              Anthropic 標準 MCP 規格に準拠した独立ツールサーバー。東証コード・最新株価・PER・PBR・ROE・バリュートラップ判定の外部ツール提供。
+            </p>
+          </div>
+          <div>
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--accent-purple);">3. ハイブリッド RRF 検索エンジン</h4>
+            <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
+              日本語 CJK Bi-gram + 金融複合数値トークナイズによる BM25 Okapi と Dense Vector を順位融合（$k=60$）。
+            </p>
+          </div>
+          <div>
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--accent-yellow);">4. 文単位引用一致率監査器</h4>
+            <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
+              生成文中のすべての主張を分解し、文献 Chunk / MCP データのトークン包含を検証。Consistency Rate、Precision、Recall を自動定量化。
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <footer style="text-align: center; padding: 40px 24px; border-top: 1px solid var(--border-color); color: var(--text-sub); font-size: 13px;">
+    Financial RAG & Citation Attribution Agent &copy; 2026 Hyperion. Nikkei Technical Showcase Reference Project.
+  </footer>
+
+  <script src="assets/docs.js"></script>
+</body>
+</html>

@@ -93,14 +93,12 @@ def fetch_live_stock_valuation(ticker: str) -> Dict[str, Any]:
         roe_raw = info.get("returnOnEquity") or 0.10
         roe_percent = round(float(roe_raw) * 100, 2)
 
-        # Dividend Yield
-        div_raw = info.get("dividendYield") or 0.0
-        if div_raw and div_raw > 1.0:
-            div_yield = round(float(div_raw), 2)
-        elif div_raw:
-            div_yield = round(float(div_raw) * 100, 2)
-        else:
-            div_yield = 2.0
+        # Dividend Yield — this yfinance version (>=1.7) already returns
+        # dividendYield as a percent value (e.g. 3.31 means 3.31%), not a
+        # fraction. Do NOT re-multiply by 100 here (that previously turned
+        # low-yield stocks like 0.92% into a bogus 92%).
+        div_raw = info.get("dividendYield")
+        div_yield = round(float(div_raw), 2) if div_raw is not None else 2.0
 
         # Operating Margin
         margin_raw = info.get("operatingMargins") or 0.08
@@ -217,3 +215,65 @@ def fetch_live_macro_indicators() -> List[Dict[str, Any]]:
 
     _set_cache(cache_key, indicators)
     return indicators
+
+
+def fetch_live_disclosure(ticker: str) -> Dict[str, Any]:
+    """Fetch live earnings/disclosure figures (revenue, operating income, net income)
+    from the latest available fiscal-year column in yfinance's income statement.
+
+    Falls back (fallback_needed=True) if yfinance has no income-statement data yet
+    (e.g. before the fiscal year is reported) or on any network/parsing error.
+    """
+    clean_ticker = ticker.strip().upper().replace(".T", "")
+    cache_key = f"disc_{clean_ticker}"
+    cached = _get_from_cache(cache_key)
+    if cached is not None:
+        return cached
+
+    company_name = JP_TICKER_NAMES.get(clean_ticker, f"銘柄コード {clean_ticker}")
+    yf_symbol = f"{clean_ticker}.T"
+
+    try:
+        t = yf.Ticker(yf_symbol)
+        income_stmt = t.income_stmt
+        if income_stmt is None or income_stmt.empty:
+            return {"error": "No income statement data available.", "fallback_needed": True}
+
+        latest_col = income_stmt.columns[0]
+        fiscal_end = latest_col.strftime("%Y年%m月期") if hasattr(latest_col, "strftime") else str(latest_col)
+
+        def _row(name: str) -> float:
+            if name in income_stmt.index:
+                val = income_stmt.loc[name, latest_col]
+                if val is not None and val == val:  # not NaN
+                    return float(val)
+            return 0.0
+
+        revenue = _row("Total Revenue")
+        operating_income = _row("Operating Income")
+        net_income = _row("Net Income")
+
+        if revenue == 0.0 and operating_income == 0.0 and net_income == 0.0:
+            return {"error": "Income statement rows empty for latest period.", "fallback_needed": True}
+
+        now_str = time.strftime("%Y-%m-%d %H:%M JST")
+        result = {
+            "ticker": clean_ticker,
+            "company_name": company_name,
+            "fiscal_year": f"{fiscal_end} (Live yfinance 実績/直近開示)",
+            "revenue_billion_jpy": round(revenue / 1e9, 1),
+            "operating_income_billion_jpy": round(operating_income / 1e9, 1),
+            "net_income_billion_jpy": round(net_income / 1e9, 1),
+            "guidance_revision": f"Live yfinance 取得時刻: {now_str}（次回決算発表で自動更新）",
+            "major_catalysts": [],
+            "data_source": "yfinance_live",
+        }
+        _set_cache(cache_key, result)
+        return result
+
+    except Exception as e:
+        logger.warning("Failed to fetch live disclosure for %s: %s. Falling back to snapshot.", clean_ticker, e)
+        return {
+            "error": f"Live disclosure fetch failed for {clean_ticker}: {str(e)}",
+            "fallback_needed": True,
+        }

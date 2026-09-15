@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    container_name: nikkei-financial-rag-app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATA_SOURCE_MODE=live_api
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - MCP_SERVER_URL=http://mcp-server:8001
+      - LOG_LEVEL=INFO
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: nikkei-es-kuromoji
+    environment:
+      - node.name=nikkei-es-01
+      - cluster.name=nikkei-cluster
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mcp-server:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    container_name: nikkei-mcp-financial-tools
+    command: ["python", "-m", "src.mcp_server.server"]
+    ports:
+      - "8001:8001"
+    environment:
+      - DATA_SOURCE_MODE=live_api
+    restart: unless-stopped

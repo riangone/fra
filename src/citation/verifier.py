@@ -3,7 +3,7 @@
 import re
 from typing import List, Dict, Any, Set
 from src.models.document import CitationMarker, CitationAuditReport
-from src.citation.extractor import split_sentences_japanese, extract_citation_tags
+from src.citation.extractor import split_sentences_japanese, extract_citation_tags, macro_citation_id
 from src.retrieval.hybrid_retriever import tokenize_japanese_text
 
 
@@ -62,6 +62,13 @@ class CitationConsistencyVerifier:
                     "id": f"mcp_disc_{ticker}",
                     "title": f"{comp} 決算開示情報",
                     "content": f"{comp}（{ticker}）売上高: {fm.get('revenue_billion_jpy')}億円、営業利益: {fm.get('operating_income_billion_jpy')}億円、純利益: {fm.get('net_income_billion_jpy')}億円、開示修正: {fm.get('guidance_revision')}",
+                }
+            if "indicator" in fm:
+                mid = macro_citation_id(fm.get("indicator", ""))
+                chunk_map[mid] = {
+                    "id": mid,
+                    "title": f"{fm.get('indicator', '')} マクロ環境指標（Live）",
+                    "content": f"{fm.get('indicator')}: {fm.get('value')}（トレンド: {fm.get('trend')}、提供: {fm.get('source')}）",
                 }
 
         raw_sentences = split_sentences_japanese(text)

@@ -11,6 +11,15 @@
 
 ---
 
+### 📖 日本語公式ドキュメント体系 (Japanese Documentation Suite)
+- 📐 **[システム詳細設計書 (System Design Document)](docs/DESIGN_JA.md)**：アーキテクチャ詳細、LangGraph 状態マシン、MCP 設計、RRF 数理モデル、引用一致率監査アルゴリズム。
+- 🛠️ **[利用マニュアル・運用手順書 (Operations & User Manual)](docs/USER_MANUAL_JA.md)**：環境構築、systemd 本番常駐、Web UI 操作、API 仕様、夜間バッチ、CI/CD Eval 実行。
+- 💡 **[前提基礎知識ガイド (Fundamental Concepts Guide)](docs/PREREQUISITES_JA.md)**：金融×RAG の固有課題、LangGraph、MCP プロトコル標準、検索数理（BM25/Dense/RRF）、財務工学（PER/PBR/ROE/TSR/バリュートラップ）。
+- 🦉 **[小学生でもわかる！金融AIきしゃのぼうけん (Story for Everyone)](docs/KIDS_GUIDE_JA.md)**：ハルキくんとAI記者ハイペリオンの冒険物語で学ぶ金融AIのしくみ。
+- 📑 **[ドキュメント総合目次 (Documentation Index)](docs/README.md)**
+
+---
+
 ## 🏗️ 系统架构设计 (System Architecture)
 
 ```mermaid
@@ -129,6 +138,12 @@ curl -N -X POST http://localhost:8000/api/v1/chat/stream \
 ```text
 financial-rag-agent/
 ├── README.md                      # 本文档（中/日/英架构与评测说明）
+├── docs/                          # 📖 完整日文文档体系
+│   ├── README.md                  # 文档综合目次 (Index)
+│   ├── DESIGN_JA.md               # 系统详细设计书 (Architecture & Core Design)
+│   ├── USER_MANUAL_JA.md          # 利用与运维手册 (Operations & User Manual)
+│   ├── PREREQUISITES_JA.md        # 前提基础知识指南 (Fundamental Knowledge)
+│   └── KIDS_GUIDE_JA.md           # 小学生也能看懂的科普故事 (Story Guide)
 ├── pyproject.toml                 # 项目元数据与依赖配置
 ├── requirements.txt               # 生产依赖列表
 ├── .env.example                   # 环境变量配置模板

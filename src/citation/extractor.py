@@ -3,6 +3,28 @@
 import re
 from typing import List, Tuple
 
+# Maps a substring found in a live macro indicator's `indicator` label to a
+# stable citation-id slug. Used by the synthesizer (to tag the sentence) and
+# the citation verifier (to register the matching virtual chunk) so macro
+# citations point at the *live* MCP value, never at a static news article
+# (previously all three macro indicators were hardcoded to cite
+# `doc_nikkei_boj_01`, a real 2024-07-31 Nikkei article indexed in
+# data/sample_articles.json, which silently routed "Live" macro cards to
+# stale 2024 evidence when clicked).
+_MACRO_INDICATOR_SLUGS = (
+    ("日銀政策金利", "boj_rate"),
+    ("日経平均", "nikkei225"),
+    ("USD/JPY", "usdjpy"),
+)
+
+
+def macro_citation_id(indicator: str) -> str:
+    """Derives a `mcp_macro_*` citation id for a live macro indicator label."""
+    for needle, slug in _MACRO_INDICATOR_SLUGS:
+        if needle in (indicator or ""):
+            return f"mcp_macro_{slug}"
+    return "mcp_macro_other"
+
 
 def split_sentences_japanese(text: str) -> List[str]:
     """

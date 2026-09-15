@@ -5,19 +5,18 @@ import json
 import time
 from typing import AsyncGenerator, Optional
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from src.models.state import ChatRequest, ChatResponse
 from src.graph.workflow import financial_graph
 from src.graph.nodes.hybrid_search import get_shared_retriever
-from config.settings import settings
 
 router = APIRouter(prefix="/api/v1", tags=["financial-rag"])
 
-
-class SettingsUpdateRequest(BaseModel):
-    data_source_mode: str = Field(..., description="Data source mode: 'snapshot' or 'live_api'")
+# Live-only mode (2026-09-15): the snapshot/live_api manual switch was removed
+# per user request — this system now always fetches real-time data via
+# yfinance and there is no UI/API path to change that.
+DATA_SOURCE_MODE = "live_api"
 
 
 @router.get("/health")
@@ -28,7 +27,7 @@ async def health_check():
         "service": "financial-rag-agent",
         "indexed_documents": len(retriever.documents),
         "mcp_server": "active",
-        "data_source_mode": settings.data_source_mode,
+        "data_source_mode": DATA_SOURCE_MODE,
         "timestamp": time.time(),
     }
 
@@ -36,34 +35,153 @@ async def health_check():
 @router.get("/settings")
 async def get_settings():
     return {
-        "data_source_mode": settings.data_source_mode,
-        "available_modes": [
-            {
-                "id": "snapshot",
-                "label": "最新スナップショット (Snapshot 2025/2026)",
-                "badge": "📦 SNAPSHOT",
-                "description": "東証・日経確定値基盤。高速・再現性100%・CI/CD評価保証",
-            },
-            {
-                "id": "live_api",
-                "label": "リアルタイム金融API (Live yfinance)",
-                "badge": "⚡ LIVE API",
-                "description": "東京証券取引所(.T)・為替(USD/JPY)・日経225のリアルタイム取得",
-            },
-        ],
+        "data_source_mode": DATA_SOURCE_MODE,
+        "label": "リアルタイム金融API (Live yfinance)",
+        "badge": "⚡ LIVE API",
+        "description": "東京証券取引所(.T)・為替(USD/JPY)・日経225のリアルタイム取得。手動切替は廃止済み。",
     }
 
 
-@router.post("/settings")
-async def update_settings(req: SettingsUpdateRequest):
-    if req.data_source_mode not in ["snapshot", "live_api"]:
-        raise HTTPException(status_code=400, detail="Invalid data_source_mode. Choose 'snapshot' or 'live_api'.")
-    settings.data_source_mode = req.data_source_mode
-    return {
-        "status": "success",
-        "data_source_mode": settings.data_source_mode,
-        "message": f"Data source mode switched to '{settings.data_source_mode}'",
-    }
+@router.get("/documents/{doc_id}")
+async def get_document_detail(doc_id: str):
+    """Retrieve full text and metadata for a specific document or MCP citation source."""
+    retriever = get_shared_retriever()
+
+    # 1. Look up in indexed documents
+    if doc_id in retriever.documents:
+        doc = retriever.documents[doc_id]
+        return {
+            "status": "success",
+            "type": "document",
+            "id": doc.id,
+            "title": doc.title,
+            "ticker": doc.ticker,
+            "company_name": doc.company_name,
+            "source": doc.source,
+            "date": doc.date,
+            "category": doc.category,
+            "content": doc.content,
+            "metadata": doc.metadata,
+        }
+
+    # 2. Look up in MCP Valuation sources (e.g. mcp_val_6758, mcp_val_7203)
+    if doc_id.startswith("mcp_val_"):
+        ticker = doc_id.replace("mcp_val_", "").strip()
+        from src.mcp_server.tools.valuation_tools import get_stock_valuation
+        try:
+            val_data = get_stock_valuation(ticker, mode=DATA_SOURCE_MODE)
+            comp_name = val_data.get("company_name", f"Ticker {ticker}")
+            content_summary = (
+                f"{comp_name}（証券コード: {ticker}）の資本コスト・財務指標詳細データです。\n\n"
+                f"■ 主な財務指標:\n"
+                f"・予想PER (株価収益率): {val_data.get('per')}倍\n"
+                f"・PBR (株価純資産倍率): {val_data.get('pbr')}倍 (東証1倍割れ改善指針)\n"
+                f"・ROE (自己資本利益率): {val_data.get('roe_percent')}%\n"
+                f"・TSR (株主総利回り): {val_data.get('tsr_percent')}%\n"
+                f"・時価総額: {val_data.get('market_cap_trillion_jpy')}兆円\n"
+                f"・配当利回り: {val_data.get('dividend_yield_percent')}%\n"
+                f"・営業利益率: {val_data.get('operating_profit_margin_percent')}%\n\n"
+                f"■ 企業価値評価ステータス: 『{val_data.get('valuation_status')}』\n"
+                f"■ Value Trap (バリュートラップ) 判定: 『{val_data.get('value_trap_risk')}』"
+            )
+            return {
+                "status": "success",
+                "type": "mcp_valuation",
+                "id": doc_id,
+                "title": f"{comp_name}（{ticker}）財務・バリュエーション指標 (MCP)",
+                "ticker": ticker,
+                "company_name": comp_name,
+                "source": "Model Context Protocol (MCP Server)",
+                "date": val_data.get("as_of_date", "2025/2026"),
+                "category": "財務モデル・開示指標",
+                "content": content_summary,
+                "metrics": val_data,
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error fetching MCP valuation for {ticker}: {str(e)}")
+
+    # 3. Look up in MCP Disclosure sources (e.g. mcp_disc_7203, mcp_disc_6758)
+    if doc_id.startswith("mcp_disc_"):
+        ticker = doc_id.replace("mcp_disc_", "").strip()
+        from src.mcp_server.tools.disclosure_tools import get_financial_disclosure
+        try:
+            disc_data = get_financial_disclosure(ticker, mode=DATA_SOURCE_MODE)
+            comp_name = disc_data.get("company_name", f"Ticker {ticker}")
+            catalysts_str = "、".join(disc_data.get("major_catalysts", []))
+            content_summary = (
+                f"{comp_name}（証券コード: {ticker}）の決算開示・業績ガイダンス詳細データです。\n\n"
+                f"■ 決算期: {disc_data.get('fiscal_year')}\n"
+                f"■ 売上高: {disc_data.get('revenue_billion_jpy')}億円\n"
+                f"■ 営業利益: {disc_data.get('operating_income_billion_jpy')}億円\n"
+                f"■ 当期純利益: {disc_data.get('net_income_billion_jpy')}億円\n\n"
+                f"■ ガイダンス修正・重要開示:\n{disc_data.get('guidance_revision')}\n\n"
+                f"■ 主要カタリスト・成長牽引材料:\n{catalysts_str}"
+            )
+            return {
+                "status": "success",
+                "type": "mcp_disclosure",
+                "id": doc_id,
+                "title": f"{comp_name}（{ticker}）決算開示・業績ガイダンス (MCP)",
+                "ticker": ticker,
+                "company_name": comp_name,
+                "source": "東京証券取引所 TDnet / MCP 開示速報",
+                "date": disc_data.get("fiscal_year", "最新開示"),
+                "category": "適時開示・決算速報",
+                "content": content_summary,
+                "metrics": disc_data,
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error fetching MCP disclosure for {ticker}: {str(e)}")
+
+    # 4. Macro indicator lookup
+    if "macro" in doc_id or "boj" in doc_id:
+        from src.mcp_server.tools.disclosure_tools import get_macro_indicators
+        try:
+            macro_list = get_macro_indicators(mode=DATA_SOURCE_MODE)
+            macro_content = "日本銀行および為替・株式市場のマクロ経済指標スナップショットです。\n\n"
+            for item in macro_list:
+                macro_content += f"・{item.get('indicator')}: {item.get('value')} (トレンド: {item.get('trend')}, 提供: {item.get('source')})\n"
+            return {
+                "status": "success",
+                "type": "mcp_macro",
+                "id": doc_id,
+                "title": "日本銀行金融政策およびマクロ経済指標 (MCP)",
+                "ticker": "MACRO",
+                "company_name": "日本銀行・為替市場",
+                "source": "Model Context Protocol / 日銀・東証公表値",
+                "date": macro_list[0].get("updated_at", "N/A") if macro_list else "N/A",
+                "category": "マクロ経済・金融政策",
+                "content": macro_content,
+                "metrics": macro_list,
+            }
+        except Exception:
+            pass
+
+    # 5. Fallback substring search in retriever documents
+    for k, doc in retriever.documents.items():
+        if doc_id.lower() in k.lower() or k.lower() in doc_id.lower():
+            return {
+                "status": "success",
+                "type": "document",
+                "id": doc.id,
+                "title": doc.title,
+                "ticker": doc.ticker,
+                "company_name": doc.company_name,
+                "source": doc.source,
+                "date": doc.date,
+                "category": doc.category,
+                "content": doc.content,
+                "metadata": doc.metadata,
+            }
+
+    raise HTTPException(status_code=404, detail=f"Document or citation source '{doc_id}' not found.")
+
+
+@router.get("/citations/{doc_id}")
+async def get_citation_detail(doc_id: str):
+    """Alias for /documents/{doc_id} to support citation links."""
+    return await get_document_detail(doc_id)
+
 
 
 @router.post("/chat/sync", response_model=ChatResponse)
@@ -71,7 +189,7 @@ async def chat_sync(request: ChatRequest):
     """Synchronous chat endpoint executing full LangGraph workflow."""
     start_time = time.time()
     session_id = request.session_id or f"session-{int(time.time())}"
-    mode = request.data_source_mode or settings.data_source_mode
+    mode = DATA_SOURCE_MODE
 
     initial_state = {
         "session_id": session_id,
@@ -117,7 +235,7 @@ async def chat_sync(request: ChatRequest):
 async def chat_stream(request: ChatRequest):
     """Server-Sent Events (SSE) streaming endpoint emitting intermediate agent states."""
     session_id = request.session_id or f"stream-{int(time.time())}"
-    mode = request.data_source_mode or settings.data_source_mode
+    mode = DATA_SOURCE_MODE
 
     async def event_generator() -> AsyncGenerator[dict, None]:
         start_time = time.time()
@@ -175,7 +293,20 @@ async def chat_stream(request: ChatRequest):
                         "data": json.dumps({
                             "node": node_name,
                             "chunks_count": len(chunks),
-                            "top_chunks": [{"id": c["id"], "title": c["title"], "rrf_score": c["rrf_score"]} for c in chunks[:3]],
+                            "top_chunks": [
+                                {
+                                    "id": c.get("id"),
+                                    "title": c.get("title", c.get("id")),
+                                    "ticker": c.get("ticker"),
+                                    "company_name": c.get("company_name"),
+                                    "date": c.get("date"),
+                                    "category": c.get("category"),
+                                    "source": c.get("source", "日経電子版 / TDnet"),
+                                    "rrf_score": round(float(c.get("rrf_score", 0.0)), 4),
+                                    "content": (c.get("content", "")[:140] + "...") if len(c.get("content", "")) > 140 else c.get("content", ""),
+                                }
+                                for c in chunks[:5]
+                            ],
                         }, ensure_ascii=False),
                     }
                 elif node_name == "mcp_tool_runner":
@@ -191,6 +322,19 @@ async def chat_stream(request: ChatRequest):
                     }
                 elif node_name == "synthesizer":
                     draft = node_state.get("draft_response", "")
+                    synth_trace = next(
+                        (t for t in node_state.get("execution_trace", []) if t.get("node") == "synthesizer"),
+                        {},
+                    )
+                    llm_provider = synth_trace.get("llm_provider", "template")
+                    yield {
+                        "event": "synthesis_meta",
+                        "data": json.dumps({
+                            "llm_provider": llm_provider,
+                            "is_real_llm": llm_provider != "template",
+                            "duration_ms": synth_trace.get("duration_ms", 0),
+                        }, ensure_ascii=False),
+                    }
                     # Stream tokens in small chunks
                     chunk_size = 30
                     for i in range(0, len(draft), chunk_size):

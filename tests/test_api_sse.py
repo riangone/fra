@@ -47,4 +47,37 @@ async def test_api_chat_stream_sse():
             body_str = body.decode("utf-8")
             assert "event: session_start" in body_str
             assert "event: retrieval_done" in body_str
+            assert "top_chunks" in body_str
             assert "event: done" in body_str
+
+
+@pytest.mark.asyncio
+async def test_api_document_detail():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Existing Nikkei Document
+        res = await client.get("/api/v1/documents/doc_nikkei_6758_01")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["id"] == "doc_nikkei_6758_01"
+        assert "ソニーグループ" in data["title"]
+        assert "content" in data
+        assert len(data["content"]) > 50
+
+        # 2. Alias /citations/
+        res_alias = await client.get("/api/v1/citations/doc_nikkei_6758_01")
+        assert res_alias.status_code == 200
+        assert res_alias.json()["id"] == "doc_nikkei_6758_01"
+
+        # 3. MCP Valuation citation
+        res_mcp = await client.get("/api/v1/documents/mcp_val_6758")
+        assert res_mcp.status_code == 200
+        mcp_data = res_mcp.json()
+        assert mcp_data["type"] == "mcp_valuation"
+        assert mcp_data["ticker"] == "6758"
+        assert "metrics" in mcp_data
+
+        # 4. 404 for non-existent doc
+        res_404 = await client.get("/api/v1/documents/non_existent_doc_9999")
+        assert res_404.status_code == 404
+
