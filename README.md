@@ -167,7 +167,9 @@ financial-rag-agent/
 ├── config/
 │   └── settings.py                # Pydantic 集中配置管理
 ├── data/
-│   ├── sample_articles.json       # 日经风格新闻与 JPX 财报开示数据
+│   ├── sample_articles.json       # 日经风格新闻与 JPX 财报开示数据（8条手写种子语料）
+│   ├── edinet_articles.json       # [可选/不随仓库自带] EDINET 实数据扩充语料，由 scripts/ingest_edinet.py 生成
+│   ├── tse_listed_companies.csv   # 东证上市公司主数据（JPX 官方，3712 家）
 │   └── golden_eval_dataset.json   # 黄金评测基准数据集
 ├── src/
 │   ├── models/                    # Pydantic & TypedDict 数据契约

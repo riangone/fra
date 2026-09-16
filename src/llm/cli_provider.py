@@ -10,11 +10,14 @@ opencode's free-tier model) is acceptable.
 
 Supported providers, tried in order until one returns a non-empty
 completion (a local, API-key-free fallback chain — analogous to
-AiSettings.DefaultProvider / FallbackProvider in AiChatApp):
+AiSettings.DefaultProvider / FallbackProvider in AiChatApp). Default order
+(see config/settings.py::local_cli_provider_order, overridable via
+LOCAL_CLI_PROVIDER_ORDER) puts opencode first since it is a genuinely free
+model with no subscription attached, ahead of the paid-plan CLIs:
 
+    opencode    -> `opencode run "<prompt>" --format json` (NDJSON event stream)
     claude      -> `claude -p --restricted ... --output-format text` (stdin)
     antigravity -> `antigravity --print "<prompt>" --output-format text --sandbox`
-    opencode    -> `opencode run "<prompt>" --format json` (NDJSON event stream)
 
 Any provider that is missing from PATH, times out, exits non-zero, or
 returns empty output is skipped; if every provider fails, `invoke_local_cli`

@@ -1,5 +1,6 @@
 """Unit tests for Hybrid Retriever (BM25 + Vector + RRF)."""
 
+import json
 import pytest
 from pathlib import Path
 from src.retrieval.hybrid_retriever import HybridRetriever, tokenize_japanese_text
@@ -56,3 +57,66 @@ def test_hybrid_retriever_search():
     assert len(results) == 2
     assert results[0].id == "doc_1"
     assert results[0].rrf_score > 0
+
+
+def test_load_merged_corpus_combines_sample_and_edinet_files(tmp_path):
+    """get_shared_retriever's merge helper should combine
+    sample_articles.json with an optional edinet_articles.json (Tier 1
+    EDINET-sourced expansion), deduping by id with the later file winning.
+    """
+    from src.graph.nodes.hybrid_search import _load_merged_corpus
+
+    sample = [
+        {
+            "id": "doc_a",
+            "title": "Sample A",
+            "ticker": "1111",
+            "company_name": "Sample Co",
+            "source": "test",
+            "date": "2024-01-01",
+            "category": "test",
+            "content": "sample content",
+        }
+    ]
+    edinet = [
+        {
+            "id": "doc_edinet_9999_S100X",
+            "title": "EDINET Filing",
+            "ticker": "9999",
+            "company_name": "EDINET Co",
+            "source": "EDINET（金融庁）",
+            "date": "2024-06-27",
+            "category": "有価証券報告書",
+            "content": "edinet content",
+        }
+    ]
+    (tmp_path / "sample_articles.json").write_text(json.dumps(sample, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "edinet_articles.json").write_text(json.dumps(edinet, ensure_ascii=False), encoding="utf-8")
+
+    merged = _load_merged_corpus(tmp_path)
+
+    assert set(merged.keys()) == {"doc_a", "doc_edinet_9999_S100X"}
+    assert merged["doc_edinet_9999_S100X"].company_name == "EDINET Co"
+
+
+def test_load_merged_corpus_missing_edinet_file_is_fine(tmp_path):
+    """edinet_articles.json is optional -- its absence must not break loading."""
+    from src.graph.nodes.hybrid_search import _load_merged_corpus
+
+    sample = [
+        {
+            "id": "doc_a",
+            "title": "Sample A",
+            "ticker": "1111",
+            "company_name": "Sample Co",
+            "source": "test",
+            "date": "2024-01-01",
+            "category": "test",
+            "content": "sample content",
+        }
+    ]
+    (tmp_path / "sample_articles.json").write_text(json.dumps(sample, ensure_ascii=False), encoding="utf-8")
+
+    merged = _load_merged_corpus(tmp_path)
+
+    assert set(merged.keys()) == {"doc_a"}

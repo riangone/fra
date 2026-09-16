@@ -240,6 +240,68 @@ def synthesize_grounded_response(
     return "\n".join(response_lines)
 
 
+def _build_layman_verdict_section(
+    metrics: List[Dict[str, Any]], target_tickers: Optional[List[str]] = None
+) -> str:
+    """Deterministic, rule-based plain-language conclusion appended to every
+    report regardless of which backend wrote the prose above it (local CLI /
+    cloud LLM / template).
+
+    Design rationale (why this is NOT left to the LLM):
+    - A buy/sell-style call is the single highest-stakes sentence in the
+      report. Free-form generation would risk (a) a verdict unsupported by
+      the cited metrics (hallucination) and (b) a different call for the
+      exact same numbers depending on which provider happened to answer.
+    - Instead this translates fields the model is already told to cite
+      (`valuation_status`, `roe_percent` — see `_build_grounding_context`)
+      into a fixed layman label via a pure lookup table, so the result is
+      100% reproducible and stays inside the same `[mcp_val_<ticker>]`
+      citation the audit machinery already validates.
+
+    NOT INVESTMENT ADVICE: the disclaimer is hard-coded rather than
+    prompted for, since the audience for this line is explicitly the
+    general reader who most needs the caveat spelled out.
+    """
+    verdict_lines: List[str] = []
+    for m in metrics:
+        if "per" not in m or "pbr" not in m:
+            continue
+        ticker = m.get("ticker", "")
+        if target_tickers and ticker not in target_tickers:
+            continue
+
+        comp = m.get("company_name", ticker)
+        status = m.get("valuation_status", "FAIR")
+        try:
+            roe = float(m.get("roe_percent", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            roe = 0.0
+        cid = f"mcp_val_{ticker}"
+
+        if status == "UNDERVALUED" and roe >= 10:
+            label = "🟢 割安圏＋資本効率も良好 → 中長期の「買い」候補として検討の余地あり"
+        elif status == "UNDERVALUED":
+            label = "🟢 割安圏 → 押し目候補（ただし資本効率は要確認）"
+        elif status == "OVERVALUED":
+            label = "🔴 割高圏 → 新規の「買い」は慎重に、既存保有者は利益確定も選択肢の一つ"
+        else:
+            label = "🟡 妥当水準 → 「様子見」が妥当、次の材料待ち"
+
+        verdict_lines.append(
+            f"- **{comp}（{ticker}）**：{label}（評価ステータス『{status}』・ROE {roe}% を根拠に機械的判定）[{cid}]"
+        )
+
+    if not verdict_lines:
+        return ""
+
+    return (
+        "\n\n### 📌 まとめ：一般の方向けの参考結論\n"
+        + "\n".join(verdict_lines)
+        + "\n\n※ このまとめは開示済みの定量指標（PER/PBR/ROE等）のみを機械的なルールで判定した参考情報であり、"
+        "投資助言・売買推奨ではありません。最終的な投資判断は必ずご自身の責任で行ってください。"
+    )
+
+
 def synthesizer_node(state: AgentState) -> Dict[str, Any]:
     """Generates draft response with sentence-level citations."""
     start_time = time.time()
@@ -288,6 +350,11 @@ def synthesizer_node(state: AgentState) -> Dict[str, Any]:
             feedback_notes=feedback,
         )
         provider_used = "template"
+
+    # Appended after every backend (local CLI / cloud / template) so the
+    # layman verdict is always present and never depends on which provider
+    # happened to answer — see _build_layman_verdict_section docstring.
+    draft += _build_layman_verdict_section(metrics, target_tickers)
 
     trace = state.get("execution_trace", [])
     trace.append({

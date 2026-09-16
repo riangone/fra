@@ -1,22 +1,50 @@
 """Hybrid Search Node with BM25 + Dense + RRF."""
 
+import json
 import time
 from pathlib import Path
 from typing import Dict, Any
+from src.models.document import Document
 from src.models.state import AgentState
 from src.retrieval.hybrid_retriever import HybridRetriever
 from config.settings import settings
 
 _retriever_instance: HybridRetriever = None
 
+# Loaded in this order and merged into one corpus (later files win on id
+# collision). sample_articles.json is the original 8-row hand-written seed
+# corpus; edinet_articles.json is the optional Tier 1 expansion produced by
+# scripts/ingest_edinet.py from real EDINET (金融庁) filings -- absent by
+# default, additive only, never required for the app to run.
+_CORPUS_FILES = ("sample_articles.json", "edinet_articles.json")
+
+
+def _load_merged_corpus(data_dir: Path) -> Dict[str, Document]:
+    """Load and merge every file in _CORPUS_FILES found under `data_dir`,
+    keyed by Document.id (a later file overwrites an earlier one on
+    collision). Missing files are silently skipped -- only
+    sample_articles.json is expected to always exist.
+    """
+    merged: Dict[str, Document] = {}
+    for filename in _CORPUS_FILES:
+        data_path = data_dir / filename
+        if not data_path.exists():
+            continue
+        with open(data_path, "r", encoding="utf-8") as f:
+            for item in json.load(f):
+                doc = Document(**item)
+                merged[doc.id] = doc
+    return merged
+
 
 def get_shared_retriever() -> HybridRetriever:
     global _retriever_instance
     if _retriever_instance is None:
         _retriever_instance = HybridRetriever()
-        data_path = Path(__file__).resolve().parents[3] / "data" / "sample_articles.json"
-        if data_path.exists():
-            _retriever_instance.load_documents_from_file(data_path)
+        data_dir = Path(__file__).resolve().parents[3] / "data"
+        merged = _load_merged_corpus(data_dir)
+        if merged:
+            _retriever_instance.index_documents(list(merged.values()))
     return _retriever_instance
 
 

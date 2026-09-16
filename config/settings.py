@@ -15,6 +15,13 @@ class Settings(BaseModel):
     # actually reached — see llm_backend / llm_cloud_fallback_order below)
     openai_api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
     gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
+    # EDINET (金融庁) disclosure API v2 -- free instant self-service signup at
+    # https://api.edinet-fsa.go.jp/. Used by scripts/ingest_edinet.py to pull
+    # real 有価証券報告書 filings into data/edinet_articles.json (Tier 1
+    # corpus expansion for the Hybrid RRF search panel). Empty by default;
+    # ingest_edinet.py fails loudly (EdinetAuthError) rather than silently
+    # skipping when this is unset.
+    edinet_api_key: str = Field(default_factory=lambda: os.getenv("EDINET_API_KEY", ""))
     embedding_model: str = Field(default_factory=lambda: os.getenv("EMBEDDING_MODEL", "local-dense"))
     llm_model: str = Field(default_factory=lambda: os.getenv("LLM_MODEL", "gpt-4o-mini"))
 
@@ -26,7 +33,7 @@ class Settings(BaseModel):
     local_cli_provider_order: list = Field(
         default_factory=lambda: [
             p.strip()
-            for p in os.getenv("LOCAL_CLI_PROVIDER_ORDER", "claude,antigravity,opencode").split(",")
+            for p in os.getenv("LOCAL_CLI_PROVIDER_ORDER", "opencode,claude,antigravity").split(",")
             if p.strip()
         ]
     )
