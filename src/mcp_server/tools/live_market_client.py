@@ -10,20 +10,80 @@ import logging
 from typing import Dict, Any, List, Optional
 import yfinance as yf
 
+from src.mcp_server.tools.tse_master import lookup_name_by_code, resolve_ticker_by_jp_name
+
 logger = logging.getLogger(__name__)
 
-# Known Japanese stock metadata mapping
+# Known Japanese stock metadata mapping. This is a display-name cache/shortcut
+# ONLY — resolution of *which* ticker a query refers to no longer depends on
+# this being exhaustive (see resolve_ticker_by_name below). Any TSE ticker not
+# listed here still resolves fine; fetch_live_stock_valuation() falls back to
+# tse_master.lookup_name_by_code() (the bundled JPX master, 3,712 companies)
+# and finally to the company name returned live by yfinance itself.
 JP_TICKER_NAMES = {
     "7203": "トヨタ自動車",
     "6758": "ソニーグループ",
     "9984": "ソフトバンクグループ",
     "8306": "三菱UFJフィナンシャル・グループ",
     "8035": "東京エレクトロン",
+    "7013": "IHI",
 }
 
 # In-memory cache with TTL (5 minutes)
 _CACHE: Dict[str, Dict[str, Any]] = {}
 CACHE_TTL_SECONDS = 300
+
+# Free-form ticker resolution cache (query text -> resolved 4-digit code or None).
+# Unbounded but keyed on normalized short strings; acceptable for a single
+# long-running process, same tradeoff as _CACHE above.
+_TICKER_RESOLVE_CACHE: Dict[str, Optional[str]] = {}
+
+
+def resolve_ticker_by_name(text: str) -> Optional[str]:
+    """Resolve free-form input (company name, romanized name, or partial ticker)
+    to a 4-digit Tokyo Stock Exchange ticker code.
+
+    Two-layer resolution:
+      1. Local TSE-listed company master (data/tse_listed_companies.csv, via
+         tse_master.resolve_ticker_by_jp_name) — no network call. This is what
+         resolves Japanese kanji company names: yfinance's search API below
+         does not index kanji text at all (confirmed: e.g. "武田薬品" returns
+         zero results there), so without this local layer any kanji name
+         outside the tiny COMPANY_TICKER_MAP shortcut was unresolvable.
+      2. Yahoo Finance free-form search (network) — covers English/romanized
+         names (e.g. "Takeda") not present in the JPX master's Japanese-only
+         name column, plus anything the local master doesn't list.
+
+    Returns None (never raises) if nothing TSE-listed is found by either layer
+    or the network lookup fails for any reason (network error, timeout, rate
+    limit) — callers must treat None as "could not resolve" and fall back
+    gracefully.
+    """
+    key = text.strip().lower()
+    if not key:
+        return None
+    if key in _TICKER_RESOLVE_CACHE:
+        return _TICKER_RESOLVE_CACHE[key]
+
+    resolved: Optional[str] = resolve_ticker_by_jp_name(text)
+
+    if resolved is None:
+        try:
+            quotes = yf.Search(
+                text, max_results=5, news_count=0, lists_count=0, timeout=6
+            ).quotes
+            for quote in quotes:
+                symbol = quote.get("symbol", "")
+                code = symbol.split(".")[0]
+                if symbol.endswith(".T") and code.isdigit():
+                    resolved = code
+                    break
+        except Exception as e:
+            logger.info("Free-form ticker resolution failed for %r: %s", text, e)
+            resolved = None
+
+    _TICKER_RESOLVE_CACHE[key] = resolved
+    return resolved
 
 
 def _get_from_cache(key: str) -> Optional[Any]:
@@ -69,13 +129,25 @@ def fetch_live_stock_valuation(ticker: str) -> Dict[str, Any]:
     if cached is not None:
         return cached
 
-    company_name = JP_TICKER_NAMES.get(clean_ticker, f"銘柄コード {clean_ticker}")
     yf_symbol = f"{clean_ticker}.T"
 
     try:
         t = yf.Ticker(yf_symbol)
         info = t.info or {}
         fast_info = getattr(t, "fast_info", None)
+
+        # Prefer the curated JP display name, then the official JPX-listed
+        # name from the local TSE master (data/tse_listed_companies.csv) —
+        # both are free/instant. Only fall through to yfinance's own
+        # longName/shortName (often English) for tickers outside both, so we
+        # don't just show a bare numeric code.
+        company_name = (
+            JP_TICKER_NAMES.get(clean_ticker)
+            or lookup_name_by_code(clean_ticker)
+            or info.get("longName")
+            or info.get("shortName")
+            or f"銘柄コード {clean_ticker}"
+        )
 
         # Market Cap in Trillion JPY
         mcap_raw = getattr(fast_info, "market_cap", None) or info.get("marketCap") or 0.0
@@ -230,7 +302,11 @@ def fetch_live_disclosure(ticker: str) -> Dict[str, Any]:
     if cached is not None:
         return cached
 
-    company_name = JP_TICKER_NAMES.get(clean_ticker, f"銘柄コード {clean_ticker}")
+    company_name = (
+        JP_TICKER_NAMES.get(clean_ticker)
+        or lookup_name_by_code(clean_ticker)
+        or f"銘柄コード {clean_ticker}"
+    )
     yf_symbol = f"{clean_ticker}.T"
 
     try:

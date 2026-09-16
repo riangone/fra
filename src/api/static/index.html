@@ -1065,8 +1065,21 @@
       max-height: 85vh;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
       box-shadow: 0 20px 60px rgba(0,0,0,0.45);
       animation: citationModalIn 0.18s ease-out;
+    }
+
+    .citation-modal-header {
+      flex-shrink: 0;
+    }
+
+    #citationModalContent {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
     }
 
     @keyframes citationModalIn {
