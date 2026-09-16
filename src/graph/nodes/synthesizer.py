@@ -6,8 +6,15 @@ opencode — see `src.llm.cli_provider`), grounded strictly in the retrieved
 chunks and financial metrics via a prompt that mirrors the citation format
 `citation_verifier` expects (`[chunk_id]` per fact-bearing sentence).
 
-Fallback path: if the local CLI backend is disabled, unavailable, or every
-provider fails, a deterministic rule-based sentence assembler
+Cloud fallback (opt-in, tried after local CLI): if local CLI is disabled,
+unavailable, or every provider fails, and `settings.llm_cloud_fallback_order`
+lists at least one provider, Azure OpenAI / Google Vertex AI is tried next
+(see `src.llm.cloud_provider`). This is empty by default — local CLI keeps
+priority and this stage is a no-op unless an operator explicitly configures
+cloud credentials.
+
+Final fallback path: if neither local CLI nor any configured cloud provider
+produced a draft, a deterministic rule-based sentence assembler
 (`synthesize_grounded_response`) is used instead — no LLM call, always
 succeeds, and is what the test suite exercises (see tests/conftest.py).
 """
@@ -19,6 +26,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from config.settings import settings
 from src.citation.extractor import macro_citation_id
 from src.llm.cli_provider import invoke_local_cli
+from src.llm.cloud_provider import invoke_cloud_llm
 from src.models.state import AgentState
 
 logger = logging.getLogger(__name__)
@@ -80,6 +88,30 @@ def _build_grounding_context(chunks: List[Dict[str, Any]], metrics: List[Dict[st
     return "## Live財務指標（引用可能な ID 一覧はこの中の ID のみ。過去の新聞報道は含まれない）\n" + "\n".join(lines)
 
 
+def _build_synthesis_prompt(
+    query: str,
+    chunks: List[Dict[str, Any]],
+    metrics: List[Dict[str, Any]],
+    target_tickers: Optional[List[str]] = None,
+    feedback_notes: str = "",
+) -> Optional[str]:
+    """Renders the grounded prompt shared by every LLM backend (local CLI and
+    cloud). Returns None if there is no grounding context available at all
+    (caller should skip the LLM call entirely in that case)."""
+    context = _build_grounding_context(chunks, metrics)
+    if not context:
+        return None
+
+    prompt_parts = [f"## ユーザーの質問\n{query}"]
+    if target_tickers:
+        prompt_parts.append(f"## 対象銘柄コード\n{', '.join(target_tickers)}")
+    if feedback_notes:
+        prompt_parts.append(f"## 監査フィードバック（前回の生成に対する指摘）\n{feedback_notes}")
+    prompt_parts.append(context)
+    prompt_parts.append("上記ルールに厳密に従い、レポート本文のみを日本語で出力してください。")
+    return "\n\n".join(prompt_parts)
+
+
 def synthesize_via_local_llm(
     query: str,
     chunks: List[Dict[str, Any]],
@@ -92,24 +124,45 @@ def synthesize_via_local_llm(
     Returns (draft_text, provider_name) on success, None if there is no
     context to ground on or every configured CLI provider failed.
     """
-    context = _build_grounding_context(chunks, metrics)
-    if not context:
+    prompt = _build_synthesis_prompt(query, chunks, metrics, target_tickers, feedback_notes)
+    if prompt is None:
         return None
-
-    prompt_parts = [f"## ユーザーの質問\n{query}"]
-    if target_tickers:
-        prompt_parts.append(f"## 対象銘柄コード\n{', '.join(target_tickers)}")
-    if feedback_notes:
-        prompt_parts.append(f"## 監査フィードバック（前回の生成に対する指摘）\n{feedback_notes}")
-    prompt_parts.append(context)
-    prompt_parts.append("上記ルールに厳密に従い、レポート本文のみを日本語で出力してください。")
-    prompt = "\n\n".join(prompt_parts)
 
     completion = invoke_local_cli(prompt=prompt, system_prompt=SYNTHESIS_SYSTEM_PROMPT)
     if completion is None:
         return None
     logger.info(
         "synthesizer: local CLI provider=%s duration_ms=%.0f", completion.provider, completion.duration_ms
+    )
+    return completion.text, completion.provider
+
+
+def synthesize_via_cloud_llm(
+    query: str,
+    chunks: List[Dict[str, Any]],
+    metrics: List[Dict[str, Any]],
+    target_tickers: Optional[List[str]] = None,
+    feedback_notes: str = "",
+) -> Optional[Tuple[str, str]]:
+    """Cloud fallback (Azure OpenAI / Vertex AI) — only reached after local
+    CLI has already failed/been skipped; see module docstring for priority.
+
+    Returns (draft_text, provider_name) on success, None if there is no
+    grounding context, no cloud provider is configured, or every configured
+    provider failed.
+    """
+    if not settings.llm_cloud_fallback_order:
+        return None
+
+    prompt = _build_synthesis_prompt(query, chunks, metrics, target_tickers, feedback_notes)
+    if prompt is None:
+        return None
+
+    completion = invoke_cloud_llm(prompt=prompt, system_prompt=SYNTHESIS_SYSTEM_PROMPT)
+    if completion is None:
+        return None
+    logger.info(
+        "synthesizer: cloud provider=%s duration_ms=%.0f", completion.provider, completion.duration_ms
     )
     return completion.text, completion.provider
 
@@ -214,6 +267,17 @@ def synthesizer_node(state: AgentState) -> Dict[str, Any]:
             result = None
         if result:
             draft, provider_used = result
+
+    # Cloud fallback: only consulted if local CLI didn't produce a draft, and
+    # only does anything if the operator opted in via llm_cloud_fallback_order.
+    if not draft:
+        try:
+            cloud_result = synthesize_via_cloud_llm(query, chunks, metrics, target_tickers, feedback)
+        except Exception as exc:  # never let an SDK/prompt bug break the graph
+            logger.warning("synthesizer: cloud LLM synthesis raised, falling back to template: %s", exc)
+            cloud_result = None
+        if cloud_result:
+            draft, provider_used = cloud_result
 
     if not draft:
         draft = synthesize_grounded_response(

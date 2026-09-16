@@ -138,7 +138,25 @@ RRF_K=60
 
 # 引用監査閾値
 CITATION_MIN_CONSISTENCY=0.70
-MAX_SYNTHESIS_RETRIES=2</code></pre>
+MAX_SYNTHESIS_RETRIES=2
+
+# LLM Provider: ローカル CLI が既定・最優先（API Key 不要）。
+# 以下はすべて任意 — 未設定なら CLI → テンプレートの既存挙動のまま。
+# CLI 失敗時のみ、かつ明示的に設定した場合だけクラウドへ opt-in 兜底する。
+LLM_CLOUD_FALLBACK_ORDER=            # 例: "azure_openai,vertex_ai"（空なら無効）
+LLM_CLOUD_TIMEOUT=60
+
+# Azure OpenAI（LLM_CLOUD_FALLBACK_ORDER に azure_openai を含めた場合のみ使用）
+AZURE_OPENAI_API_KEY=
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_DEPLOYMENT=
+AZURE_OPENAI_API_VERSION=2024-10-21
+
+# Google Vertex AI（vertex_ai を含めた場合のみ使用。認証は API Key ではなく
+# Application Default Credentials＝ gcloud auth application-default login）
+VERTEX_PROJECT_ID=
+VERTEX_LOCATION=asia-northeast1
+VERTEX_MODEL=gemini-1.5-pro</code></pre>
 
         <hr>
 
@@ -238,7 +256,7 @@ sudo caddy reload</code></pre>
                   ・<code>日経 Hybrid RAG × Live MCP</code> バッジ &amp; リアルタイム件数カウンター<br>
                   ・<strong>📚 検索チャンク (Hybrid RRF)</strong>: CJK Bi-gram BM25 + Dense Vector による RRF 上位 5 件と一次資料モーダルプレビュー<br>
                   ・<strong>⚡ MCP 財務ツール指標</strong>: PER、PBR、ROE、TSR、時価総額、バリュートラップ判定、直近適時開示<br>
-                  ・<strong>🔍 実行トレース</strong>: ノード別所要時間・クエリ改写結果・LLM Provider
+                  ・<strong>🔍 実行トレース</strong>: ノード別所要時間・クエリ改写結果・LLM Provider（ローカル CLI 優先、未設定時のみ Azure OpenAI / Vertex AI 兜底）
                 </td>
               </tr>
             </tbody>
@@ -303,7 +321,9 @@ python -m src.batch.nightly_disclosure_batch --concurrency 4 --mode live_api</co
 
         <h3>7.2 ユニットおよび統合テストスイート</h3>
         <pre><code class="language-bash">pytest -v
-# 38 passed in 7.80s</code></pre>
+# 53 passed in 8.9s</code></pre>
+        <p style="font-size: 13.5px; color: var(--text-sub);">
+          <code>test_cloud_provider.py</code>（Azure OpenAI / Vertex AI Provider の成功・未設定・SDK未インストール・例外時フォールバックを SDK モックで検証）と、<code>test_local_cli_synthesis.py</code> に追加された CLI 優先順位の回帰テスト（CLI 成功時はクラウドが一切呼ばれないこと／CLI 失敗かつ未設定時はクラウドに触れないこと）を含む。</p>
 
         <hr>
 
@@ -322,6 +342,13 @@ python -m src.batch.nightly_disclosure_batch --concurrency 4 --mode live_api</co
           <div class="callout-title">Q2. リアルタイム API で取得が遅い / 失敗する</div>
           <p>
             外部 API（Yahoo Finance 等）のレートリミットまたはネットワーク遅延が原因の場合、システムは自動的に直前の 300 秒 TTL キャッシュまたは 2025/2026 スナップショット DB に無停止フォールバックします。
+          </p>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-title">Q3. Azure OpenAI / Vertex AI のクラウド兜底を有効化したい</div>
+          <p>
+            既定ではローカル CLI（claude/antigravity/opencode）のみが使用され、クラウドには一切到達しません。有効化するには <code>.env</code> に <code>LLM_CLOUD_FALLBACK_ORDER=azure_openai,vertex_ai</code> のように試行順を明示し、対応する <code>AZURE_OPENAI_*</code>（API Key 認証）または <code>VERTEX_*</code>（<code>gcloud auth application-default login</code> による ADC 認証）を設定してください。設定後もローカル CLI の優先順位は変わらず、CLI が全滅した場合にのみクラウドへフォールバックします。
           </p>
         </div>
 

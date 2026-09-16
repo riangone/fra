@@ -49,6 +49,7 @@
           <li class="sidebar-item"><a href="#sec-3-5">3.5 配信層 (FastAPI + SSE)</a></li>
           <li class="sidebar-item"><a href="#sec-3-6">3.6 夜間非同期バッチ</a></li>
           <li class="sidebar-item"><a href="#sec-3-7">3.7 可観測性 (APM/ログ)</a></li>
+          <li class="sidebar-item"><a href="#sec-3-8">3.8 LLM Provider フォールバック戦略</a></li>
           <li class="sidebar-item"><a href="#sec-4">4. データモデル・スキーマ</a></li>
           <li class="sidebar-item"><a href="#sec-5">5. 非機能要件設計</a></li>
         </ul>
@@ -69,7 +70,7 @@
       <article class="doc-article">
 
         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-          <span class="badge badge-blue">Version 1.0.0</span>
+          <span class="badge badge-blue">Version 1.1.0</span>
           <span class="badge badge-green">Production Spec</span>
           <span class="badge badge-purple">LangGraph + MCP</span>
         </div>
@@ -145,6 +146,13 @@ flowchart TD
         DenseEngine["Dense Vector Engine (384-dim 余弦類似度)"]
         RRF["Reciprocal Rank Fusion (k=60)"]
         ESAdapter["Elasticsearch 8.x Kuromoji\nマッピングアダプタ (拡張用)"]
+        DiscoveryAdapter["GCP Discovery Engine\n(Vertex AI Search) アダプタ (拡張用)"]
+    end
+
+    subgraph LLM_Layer ["LLM Provider フォールバック層"]
+        CLIProvider["Local AI CLI\n(claude / antigravity / opencode)\n既定・最優先・API Key不要"]
+        CloudProvider["Azure OpenAI / Vertex AI\n(opt-in 兜底)"]
+        TemplateFallback["テンプレート最終フォールバック"]
     end
 
     subgraph Tool_Layer ["MCP ツール連携層 (Model Context Protocol)"]
@@ -182,11 +190,17 @@ flowchart TD
     BM25Engine <--> CorpusDB
     DenseEngine <--> CorpusDB
     BM25Engine -.-> ESAdapter
+    RRF -.-> DiscoveryAdapter
 
     Node_MCP <--> MCPServer
     MCPServer --> DualSource
     DualSource -- "snapshot" --> SnapDB
     DualSource -- "live_api" --> LiveAPI
+
+    Node_SYN <--> CLIProvider
+    CLIProvider -. "CLI失敗 かつ 設定時のみ" .-> CloudProvider
+    CLIProvider -. "全Provider失敗時" .-> TemplateFallback
+    CloudProvider -. "失敗時" .-> TemplateFallback
 
     Node_VER --> AuditReport
     StateGraph -.-> Telemetry
@@ -320,7 +334,10 @@ flowchart TD
         <hr>
 
         <h3 id="sec-3-3">3.3 ハイブリッド検索 & RRF 融合エンジン</h3>
-        <p>配置: <code>src/retrieval/hybrid_retriever.py</code>, <code>src/retrieval/reranker.py</code></p>
+        <p>
+          配置: <code>src/retrieval/hybrid_retriever.py</code>, <code>src/retrieval/reranker.py</code><br>
+          本番移行用アダプタ（同一インターフェース形状、ランタイム未接続の仕様定義層）: <code>src/retrieval/es_adapter.py</code>（Elasticsearch 8.x Kuromoji + KNN）, <code>src/retrieval/discovery_engine_adapter.py</code>（GCP Discovery Engine / Vertex AI Search のハイブリッド検索リクエスト構築・レスポンス正規化）。
+        </p>
 
         <h4>日本語・金融数値特化型 BM25</h4>
         <p>
@@ -442,6 +459,54 @@ flowchart TD
     "audit_status": "PASS"
   }
 }</code></pre>
+
+        <hr>
+
+        <h3 id="sec-3-8">3.8 LLM Provider フォールバック戦略</h3>
+        <p>
+          配置: <code>src/llm/cli_provider.py</code>（既定・最優先）, <code>src/llm/cloud_provider.py</code>（opt-in 兜底）, <code>src/graph/nodes/synthesizer.py</code>（呼び出し順序の統括）
+        </p>
+        <p>
+          回答生成（Synthesizer ノード）の LLM 呼び出しは、コスト・レイテンシ・API Key 依存を最小化するため以下の 3 段フォールバック順で実行される。<strong>ローカル CLI が常に最優先</strong>であり、クラウド Provider は明示的に設定した場合にのみ 2 段目として関与する。
+        </p>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>優先順位</th>
+                <th>Provider</th>
+                <th>実装</th>
+                <th>発動条件</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1（既定・必須）</td>
+                <td>ローカル AI CLI（<code>claude</code> / <code>antigravity</code> / <code>opencode</code>）</td>
+                <td><code>invoke_local_cli()</code></td>
+                <td>常時。サブプロセス呼び出しのみで API Key 不要。<code>local_cli_provider_order</code> の順に試行。</td>
+              </tr>
+              <tr>
+                <td>2（opt-in 兜底）</td>
+                <td>Azure OpenAI / Google Vertex AI</td>
+                <td><code>invoke_cloud_llm()</code></td>
+                <td>全 CLI 失敗 <strong>かつ</strong> <code>llm_cloud_fallback_order</code>（既定は空リスト）に Provider 名と対応する認証情報が設定されている場合のみ。Azure は <code>openai</code> SDK の <code>AzureOpenAI</code> Client、Vertex は <code>google-genai</code>（<code>vertexai=True</code>、ADC 認証）。両 SDK とも関数内遅延 import。</td>
+              </tr>
+              <tr>
+                <td>3（最終フォールバック）</td>
+                <td>テンプレート合成</td>
+                <td><code>synthesizer.py</code> 内蔵ロジック</td>
+                <td>CLI・クラウドの両方が利用不可/未設定/失敗の場合。検索結果と MCP 指標から機械的にテンプレート文を組み立て、無停止性を担保。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout callout-info">
+          <div class="callout-title">🔒 デフォルト動作不変の原則</div>
+          <p>
+            <code>llm_cloud_fallback_order</code> は既定で空リストのため、<code>AZURE_OPENAI_*</code> / <code>VERTEX_*</code> 環境変数を設定しない限りクラウド Provider には一切到達しない。既存デプロイの挙動（ローカル CLI → テンプレート の 2 段構成）は完全に維持される。
+          </p>
+        </div>
 
         <hr>
 

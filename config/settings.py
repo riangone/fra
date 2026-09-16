@@ -11,7 +11,8 @@ class Settings(BaseModel):
     debug: bool = Field(default_factory=lambda: os.getenv("DEBUG", "false").lower() == "true")
     log_level: str = Field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
 
-    # API Keys & Models (unused by default — see llm_backend below)
+    # API Keys & Models (unused unless the corresponding cloud provider is
+    # actually reached — see llm_backend / llm_cloud_fallback_order below)
     openai_api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
     gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
     embedding_model: str = Field(default_factory=lambda: os.getenv("EMBEDDING_MODEL", "local-dense"))
@@ -44,6 +45,37 @@ class Settings(BaseModel):
             "antigravity": self.local_cli_timeout_antigravity,
             "opencode": self.local_cli_timeout_opencode,
         }
+
+    # Cloud LLM fallback (Azure OpenAI / Google Vertex AI): opt-in, tried
+    # ONLY after local_cli_provider_order is exhausted — local CLI stays the
+    # default, cost-free, API-key-free path (see src/llm/cli_provider.py).
+    # Empty by default => behavior is unchanged unless an operator lists
+    # provider names here AND supplies the matching credentials below.
+    llm_cloud_fallback_order: list = Field(
+        default_factory=lambda: [
+            p.strip()
+            for p in os.getenv("LLM_CLOUD_FALLBACK_ORDER", "").split(",")
+            if p.strip()
+        ]
+    )
+    llm_cloud_timeout: int = Field(default_factory=lambda: int(os.getenv("LLM_CLOUD_TIMEOUT", "60")))
+
+    # Azure OpenAI (JD tech stack: Azure OpenAI Service)
+    azure_openai_api_key: str = Field(default_factory=lambda: os.getenv("AZURE_OPENAI_API_KEY", ""))
+    azure_openai_endpoint: str = Field(default_factory=lambda: os.getenv("AZURE_OPENAI_ENDPOINT", ""))
+    azure_openai_deployment: str = Field(default_factory=lambda: os.getenv("AZURE_OPENAI_DEPLOYMENT", ""))
+    azure_openai_api_version: str = Field(
+        default_factory=lambda: os.getenv("AZURE_OPENAI_API_VERSION", "2024-10-21")
+    )
+
+    # Google Vertex AI (JD tech stack: Google Cloud Vertex AI). Auth is via
+    # Application Default Credentials (gcloud auth / service account), not
+    # an API key — only project/location/model are needed here.
+    vertex_project_id: str = Field(
+        default_factory=lambda: os.getenv("VERTEX_PROJECT_ID", os.getenv("GOOGLE_CLOUD_PROJECT", ""))
+    )
+    vertex_location: str = Field(default_factory=lambda: os.getenv("VERTEX_LOCATION", "asia-northeast1"))
+    vertex_model: str = Field(default_factory=lambda: os.getenv("VERTEX_MODEL", "gemini-1.5-pro"))
 
     # Retrieval
     hybrid_bm25_weight: float = Field(default_factory=lambda: float(os.getenv("HYBRID_BM25_WEIGHT", "0.5")))

@@ -63,7 +63,7 @@
           <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">P95 推論レイテンシ (Cache)</div>
         </div>
         <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center;">
-          <div style="font-size: 28px; font-weight: 800; color: var(--accent-yellow);">38 / 38</div>
+          <div style="font-size: 28px; font-weight: 800; color: var(--accent-yellow);">53 / 53</div>
           <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">CI 回帰テスト合格数 (pytest)</div>
         </div>
       </div>
@@ -77,7 +77,7 @@
           <div class="card-icon">📐</div>
           <div class="card-title">システム詳細設計書</div>
           <div class="card-desc">
-            LangGraph 5ノード有向グラフ状態マシン、MCP 独立ツール連携、CJK Bi-gram + 金融数値 BM25 & Dense RRF 融合、文単位引用一致率数理モデル、FastAPI SSE ストリーミング、Datadog 可観測性の完全なアーキテクチャ設計。
+            LangGraph 5ノード有向グラフ状態マシン、MCP 独立ツール連携、CJK Bi-gram + 金融数値 BM25 & Dense RRF 融合、Elasticsearch / Discovery Engine 検索アダプタ、CLI優先・Azure OpenAI / Vertex AI 兜底の LLM Provider チェーン、文単位引用一致率数理モデル、FastAPI SSE ストリーミング、Datadog 可観測性の完全なアーキテクチャ設計。
           </div>
           <div class="card-meta">
             <span>対象: アーキテクト / 開発エンジニア</span>
@@ -158,7 +158,7 @@
           <div>
             <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--accent-purple);">3. ハイブリッド RRF 検索エンジン</h4>
             <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
-              日本語 CJK Bi-gram + 金融複合数値トークナイズによる BM25 Okapi と Dense Vector を順位融合（$k=60$）。Elasticsearch 8.x Kuromoji 拡張対応。
+              日本語 CJK Bi-gram + 金融複合数値トークナイズによる BM25 Okapi と Dense Vector を順位融合（$k=60$）。Elasticsearch 8.x Kuromoji および GCP Discovery Engine（Vertex AI Search）拡張アダプタ対応。
             </p>
           </div>
           <div>
@@ -177,6 +177,12 @@
             <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--accent-red);">6. クラウドネイティブ IaC &amp; 可観測性</h4>
             <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
               AWS Lambda 预置并发冷启动排除 + GCP Discovery Engine / Vertex AI + W3C TraceContext &amp; Datadog SLO 監視。
+            </p>
+          </div>
+          <div>
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--accent-cyan, #06b6d4);">7. LLM Provider フォールバックチェーン</h4>
+            <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
+              ローカル AI CLI（claude / antigravity / opencode、API Key 不要）を既定・最優先とし、<code>llm_cloud_fallback_order</code> を設定した場合のみ Azure OpenAI（<code>AzureOpenAI</code> client）または Google Vertex AI（<code>google-genai</code>、ADC 認証）へ opt-in 兜底。
             </p>
           </div>
         </div>

@@ -59,6 +59,24 @@ RRF_K=60
 # 引用監査閾値
 CITATION_MIN_CONSISTENCY=0.70
 MAX_SYNTHESIS_RETRIES=2
+
+# LLM Provider: ローカル CLI が既定・最優先（API Key 不要）。
+# 以下はすべて任意 — 未設定なら CLI → テンプレートの既存挙動のまま。
+# CLI 失敗時のみ、かつ明示的に設定した場合だけクラウドへ opt-in 兜底する。
+LLM_CLOUD_FALLBACK_ORDER=            # 例: "azure_openai,vertex_ai"（空なら無効）
+LLM_CLOUD_TIMEOUT=60
+
+# Azure OpenAI（LLM_CLOUD_FALLBACK_ORDER に azure_openai を含めた場合のみ使用）
+AZURE_OPENAI_API_KEY=
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_DEPLOYMENT=
+AZURE_OPENAI_API_VERSION=2024-10-21
+
+# Google Vertex AI（vertex_ai を含めた場合のみ使用。認証は API Key ではなく
+# Application Default Credentials＝ gcloud auth application-default login）
+VERTEX_PROJECT_ID=
+VERTEX_LOCATION=asia-northeast1
+VERTEX_MODEL=gemini-1.5-pro
 ```
 
 ---
@@ -274,11 +292,12 @@ python eval/run_eval.py
 - 平均処理レイテンシ: < 100ms
 
 ### 7.2 ユニットおよび統合テストスイート
-全 38 件のテストを実行（100% 合格）：
+全 53 件のテストを実行（100% 合格）：
 ```bash
 pytest -v
-# 38 passed in 7.80s
+# 53 passed in 8.9s
 ```
+`test_cloud_provider.py`（Azure OpenAI / Vertex AI Provider の成功・未設定・SDK未インストール・例外時フォールバックを SDK モックで検証）と、`test_local_cli_synthesis.py` に追加された CLI 優先順位の回帰テスト（CLI 成功時はクラウドが一切呼ばれないこと／CLI 失敗かつ未設定時はクラウドに触れないこと）を含む。
 
 ---
 
@@ -299,3 +318,8 @@ pytest -v
 ### Q3. 引用一致率（Consistency Rate）が低下した場合の挙動
 - **システムの自動自己修正**:
   LangGraph の `should_retry` エッジ判定により、一致率が 70% を下回った場合は最大 2 回まで自動的にシンセシス処理へロールバックし、より厳格な引用プロンプトで再生成を試みます。
+
+### Q4. Azure OpenAI / Vertex AI のクラウド兜底を有効化したい
+- **既定動作**: ローカル CLI（claude/antigravity/opencode）のみが使用され、クラウドには一切到達しません。
+- **有効化手順**: `.env` に `LLM_CLOUD_FALLBACK_ORDER=azure_openai,vertex_ai` のように試行順を明示し、対応する `AZURE_OPENAI_*`（API Key 認証）または `VERTEX_*`（`gcloud auth application-default login` による ADC 認証）を設定してください。
+- **優先順位**: 設定後もローカル CLI の優先順位は変わらず、CLI が全滅した場合にのみクラウドへフォールバックします。

@@ -8,6 +8,7 @@ to the deterministic template) without spawning a real CLI subprocess.
 from config.settings import settings
 from src.graph.nodes import synthesizer
 from src.llm.cli_provider import CliCompletion
+from src.llm.cloud_provider import CloudCompletion
 
 
 def _sample_chunks():
@@ -156,3 +157,112 @@ def test_news_chunks_alone_produce_no_grounding():
     """Static news chunks with no Live metrics must not be synthesized —
     only Live data may drive the report."""
     assert synthesizer.synthesize_via_local_llm("q", _sample_chunks(), []) is None
+
+
+def test_cloud_fallback_not_used_by_default_when_cli_fails(monkeypatch):
+    """settings.llm_cloud_fallback_order is empty by default — local CLI
+    failing must fall straight through to the template, never touching the
+    cloud provider module, preserving CLI-first/opt-in-cloud priority."""
+    settings.llm_backend = "local_cli"
+    assert settings.llm_cloud_fallback_order == []
+    try:
+        monkeypatch.setattr(synthesizer, "invoke_local_cli", lambda prompt, system_prompt="": None)
+
+        def should_not_be_called(prompt, system_prompt=""):
+            raise AssertionError("invoke_cloud_llm must not be called when llm_cloud_fallback_order is empty")
+
+        monkeypatch.setattr(synthesizer, "invoke_cloud_llm", should_not_be_called)
+
+        state = {
+            "query": "ソニーの業績は？",
+            "retrieved_chunks": _sample_chunks(),
+            "financial_metrics": _sample_metrics(),
+            "target_tickers": ["6758"],
+            "retry_count": 0,
+            "execution_trace": [],
+        }
+
+        result = synthesizer.synthesizer_node(state)
+        assert result["execution_trace"][-1]["llm_provider"] == "template"
+    finally:
+        settings.llm_backend = "template"
+
+
+def test_cloud_fallback_used_only_after_local_cli_fails_when_opted_in(monkeypatch):
+    """When an operator opts in via llm_cloud_fallback_order, the cloud
+    provider is only reached after local CLI has already failed — CLI keeps
+    priority."""
+    settings.llm_backend = "local_cli"
+    settings.llm_cloud_fallback_order = ["azure_openai"]
+    try:
+        calls = []
+
+        def failing_local(prompt, system_prompt=""):
+            calls.append("local_cli")
+            return None
+
+        def succeeding_cloud(prompt, system_prompt=""):
+            calls.append("cloud")
+            return CloudCompletion(
+                text="### 財務・業績分析レポート\nソニーグループのPERは18.2倍だった [mcp_val_6758]。",
+                provider="azure_openai",
+                duration_ms=88.0,
+            )
+
+        monkeypatch.setattr(synthesizer, "invoke_local_cli", failing_local)
+        monkeypatch.setattr(synthesizer, "invoke_cloud_llm", succeeding_cloud)
+
+        state = {
+            "query": "ソニーの業績は？",
+            "retrieved_chunks": _sample_chunks(),
+            "financial_metrics": _sample_metrics(),
+            "target_tickers": ["6758"],
+            "retry_count": 0,
+            "execution_trace": [],
+        }
+
+        result = synthesizer.synthesizer_node(state)
+
+        assert calls == ["local_cli", "cloud"]  # CLI attempted first, cloud only after it failed
+        assert "mcp_val_6758" in result["draft_response"]
+        assert result["execution_trace"][-1]["llm_provider"] == "azure_openai"
+    finally:
+        settings.llm_backend = "template"
+        settings.llm_cloud_fallback_order = []
+
+
+def test_local_cli_success_skips_cloud_fallback_entirely(monkeypatch):
+    """If local CLI already succeeded, the cloud provider must never be
+    invoked, even if cloud fallback is configured."""
+    settings.llm_backend = "local_cli"
+    settings.llm_cloud_fallback_order = ["azure_openai"]
+    try:
+        monkeypatch.setattr(
+            synthesizer,
+            "invoke_local_cli",
+            lambda prompt, system_prompt="": CliCompletion(
+                text="### 財務・業績分析レポート\nCLIが成功 [mcp_val_6758]。",
+                provider="claude",
+                duration_ms=50.0,
+            ),
+        )
+
+        def should_not_be_called(prompt, system_prompt=""):
+            raise AssertionError("invoke_cloud_llm must not be called when local CLI already succeeded")
+
+        monkeypatch.setattr(synthesizer, "invoke_cloud_llm", should_not_be_called)
+
+        state = {
+            "query": "ソニーの業績は？",
+            "retrieved_chunks": _sample_chunks(),
+            "financial_metrics": _sample_metrics(),
+            "target_tickers": ["6758"],
+            "retry_count": 0,
+            "execution_trace": [],
+        }
+
+        result = synthesizer.synthesizer_node(state)
+        assert result["execution_trace"][-1]["llm_provider"] == "claude"
+    finally:
+        settings.llm_backend = "template"
+        settings.llm_cloud_fallback_order = []

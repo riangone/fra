@@ -4,7 +4,7 @@
 [![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
 [![MCP](https://img.shields.io/badge/Protocol-Model%20Context%20Protocol%20(MCP)-green.svg)](https://modelcontextprotocol.io/)
 [![FastAPI](https://img.shields.io/badge/API-FastAPI%20%2B%20SSE-009688.svg)](https://fastapi.tiangolo.com/)
-[![Tests](https://img.shields.io/badge/Tests-38%20Passed%20(100%25)-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-53%20Passed%20(100%25)-brightgreen.svg)]()
 
 > **Production-grade Reference Architecture for Enterprise Financial Intelligence & News Attribution**  
 > 严肃金融与商业资讯场景的企业级 RAG 与多步 Agent 引擎。针对日本经济新闻社（Nikkei）等顶级财经媒体与金融机构的生产级要求设计，解决**多步复杂调度、混合检索、精准句子级引用归因（Citation Attribution）、自动化评测（Eval）与 SSE 实时流式传输**。
@@ -59,7 +59,8 @@ flowchart TD
 | **LangGraph 复杂多步工作流** | 基于 `StateGraph` 的状态机控制、多轮改写、Intent 分类、持久化 Checkpointer、循环自修正 Edge。 | [`src/graph/workflow.py`](file:///home/ubuntu/ws/financial-rag-agent/src/graph/workflow.py) |
 | **Model Context Protocol (MCP)** | 遵循标准 MCP 协议，构建独立的 Financial Tools 模块，输出 PER/PBR/ROE/TSR 估值指标与 JPX 决算披露。 | [`src/mcp_server/server.py`](file:///home/ubuntu/ws/financial-rag-agent/src/mcp_server/server.py) |
 | **混合检索 (Hybrid Retrieval) & RRF** | CJK 双字切词与复合金融数值解析 + BM25 Okapi + Dense Vector Cosine Similarity + Reciprocal Rank Fusion (RRF)。 | [`src/retrieval/hybrid_retriever.py`](file:///home/ubuntu/ws/financial-rag-agent/src/retrieval/hybrid_retriever.py) |
-| **大规模搜索引擎适配 (Elasticsearch)** | Elasticsearch 8.x Kuromoji 全文检索 + Dense Vector KNN 向量检索适配器。 | [`src/retrieval/es_adapter.py`](file:///home/ubuntu/ws/financial-rag-agent/src/retrieval/es_adapter.py) |
+| **大规模搜索引擎适配 (Elasticsearch / Discovery Engine)** | Elasticsearch 8.x Kuromoji 全文检索 + Dense Vector KNN 向量检索适配器；Google Cloud Discovery Engine（Vertex AI Search）ハイブリッド検索 Request/Response 规范适配器。 | [`src/retrieval/es_adapter.py`](file:///home/ubuntu/ws/financial-rag-agent/src/retrieval/es_adapter.py) / [`src/retrieval/discovery_engine_adapter.py`](file:///home/ubuntu/ws/financial-rag-agent/src/retrieval/discovery_engine_adapter.py) |
+| **Azure OpenAI / Google Vertex AI 云端 LLM** | 合成层默认走本地 AI CLI（claude/antigravity/opencode，零 API Key），`llm_cloud_fallback_order` 可选启用 Azure OpenAI（`AzureOpenAI` client）/ Vertex AI（`google-genai`，ADC 鉴权）作为 CLI 失败后的兜底，CLI 优先级不变。 | [`src/llm/cloud_provider.py`](file:///home/ubuntu/ws/financial-rag-agent/src/llm/cloud_provider.py) |
 | **引用管理与一致率 (Citation Attribution)** | **句子级精确引用引擎**：自动拆分句子、匹配实体与数值事实、校验 `[doc_id]` 引用一致性，杜绝金融幻觉。 | [`src/citation/verifier.py`](file:///home/ubuntu/ws/financial-rag-agent/src/citation/verifier.py) |
 | **夜间非同期バッチ基盤 (Batch Pipeline)** | 针对东证大引盘后适时开示的并发受控（Semaphore）自动分析、Markdown 摘要生成与引用归因管道。 | [`src/batch/nightly_disclosure_batch.py`](file:///home/ubuntu/ws/financial-rag-agent/src/batch/nightly_disclosure_batch.py) |
 | **云原生 IaC 与生产基础设施 (Multi-Cloud)** | 完整 Terraform IaC：AWS Lambda (LWA) 预置并发冷启动规避、GCP Discovery Engine / Vertex AI 与 Datadog SLO 告警。 | [`infra/`](file:///home/ubuntu/ws/financial-rag-agent/infra) |
@@ -118,7 +119,7 @@ python demo.py
 python eval/run_eval.py
 ```
 
-### 4. 运行完整单元与集成测试套件 (38 Tests)
+### 4. 运行完整单元与集成测试套件 (53 Tests)
 ```bash
 pytest -v
 ```
@@ -181,7 +182,8 @@ financial-rag-agent/
 │   │   ├── hybrid_retriever.py    # BM25 + Dense Vector 混合检索
 │   │   ├── reranker.py            # Reciprocal Rank Fusion (RRF)
 │   │   ├── embeddings.py          # 稠密向量嵌入引擎
-│   │   └── es_adapter.py          # Elasticsearch 8.x Kuromoji & KNN 适配器
+│   │   ├── es_adapter.py          # Elasticsearch 8.x Kuromoji & KNN 适配器
+│   │   └── discovery_engine_adapter.py # Google Cloud Discovery Engine (Vertex AI Search) 适配器
 │   ├── mcp_server/                # Model Context Protocol 标准服务
 │   │   ├── server.py              # MCPServer 实现 (stdio / SSE)
 │   │   ├── client.py              # 异步 MCP 客户端适配器
@@ -194,7 +196,8 @@ financial-rag-agent/
 │   ├── monitoring/                # 📊 分布式遥测与可观测性
 │   │   └── telemetry.py           # W3C TraceContext 传播与 Datadog APM 结构化日志
 │   ├── llm/                       # LLM Provider 与降级引擎
-│   │   └── cli_provider.py        # Local CLI 快速推理与降级适配器
+│   │   ├── cli_provider.py        # Local CLI 快速推理与降级适配器（默认・最优先）
+│   │   └── cloud_provider.py      # Azure OpenAI / Vertex AI 云端兜底适配器（opt-in、CLI失败后才触发）
 │   ├── api/                       # Web 服务与接口
 │   │   ├── app.py                 # FastAPI 声明与生命周期
 │   │   ├── routes.py              # SSE 流式 & 同步推理接口
@@ -203,15 +206,16 @@ financial-rag-agent/
 ├── eval/                          # 自动化评测体系
 │   ├── metrics.py                 # HitRate, MRR, 引用一致率, 适合率, 再现率
 │   └── run_eval.py                # 评测套件驱动程序
-└── tests/                         # 自动化测试套件 (38 passed)
+└── tests/                         # 自动化测试套件 (53 passed)
     ├── test_hybrid_search.py      # BM25, Vector, RRF 单元测试
     ├── test_mcp_tools.py          # MCP 工具及协议测试 (包含 Live 行情波动宽容区间校验)
     ├── test_citation_verifier.py  # 引用审计与幻觉检测测试
     ├── test_langgraph_workflow.py # LangGraph 状态流转与集成测试
     ├── test_api_sse.py            # FastAPI 与 SSE 流式接口测试
-    ├── test_batch_pipeline.py     # 夜间批处理并发与管道集成测试
+    ├── test_batch_pipeline.py     # 夜间批处理并发与管道集成测试 (含 Discovery Engine 适配器)
     ├── test_cli_provider.py       # CLI Provider 推理与降级测试
-    └── test_local_cli_synthesis.py# 本地合成与引用验证回归测试
+    ├── test_cloud_provider.py     # Azure OpenAI / Vertex AI 云端兜底 Provider 测试
+    └── test_local_cli_synthesis.py# 本地合成・云端兜底・引用验证回归测试
 ```
 
 ---

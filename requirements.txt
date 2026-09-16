@@ -10,3 +10,10 @@ httpx>=0.27.0
 sse-starlette>=2.1.0
 pytest>=8.3.0
 pytest-asyncio>=0.24.0
+
+# Optional cloud LLM fallback (src/llm/cloud_provider.py) — only imported
+# lazily when settings.llm_cloud_fallback_order is set; local CLI
+# (src/llm/cli_provider.py) remains the default synthesis path and needs
+# neither of these.
+openai>=1.0.0          # Azure OpenAI Service (AzureOpenAI client)
+google-genai>=0.3.0    # Google Vertex AI (genai.Client(vertexai=True, ...))
