@@ -86,6 +86,24 @@ curl -X POST localhost:8001/events -H 'content-type: application/json' \
 pytest tests -v
 ```
 
+## デプロイ（本番環境）
+
+Docker Compose + Caddy（自動HTTPS）でホストしている。
+
+```bash
+docker compose up -d --build   # ホスト側 8010 -> コンテナ内 uvicorn 8001
+```
+
+Caddyfile（抜粋）:
+
+```caddyfile
+newsreco.0101.click {
+	reverse_proxy localhost:8010
+}
+```
+
+公開URL: https://newsreco.0101.click （Swagger UI: `/docs`）
+
 ## ディレクトリ構成
 
 ```

@@ -2,7 +2,7 @@ services:
   recommender-api:
     build: .
     ports:
-      - "8001:8001"
+      - "8010:8001"
     volumes:
       # persist the model registry + monitoring logs across restarts
       - ./artifacts:/app/artifacts
