@@ -121,6 +121,59 @@ def _determine_value_trap_risk(pbr: float, roe: float) -> str:
     return "LOW"
 
 
+# --- Shared display/verdict rules -------------------------------------
+#
+# These two helpers are the single source of truth for turning a raw
+# valuation_status/ROE pair into reader-facing text. They live next to
+# _determine_valuation_status() (same rule family, same inputs) rather than
+# in the synthesizer or the watchlist service, so both callers — the
+# chat report's layman verdict section (src/graph/nodes/synthesizer.py) and
+# the watchlist rating API (src/services/watchlist.py) — always render the
+# exact same call for the exact same numbers, instead of maintaining two
+# copies of the same if/elif ladder that could silently drift apart.
+
+VALUATION_STATUS_JA = {
+    "UNDERVALUED": "割安",
+    "OVERVALUED": "割高",
+    "FAIR": "妥当",
+}
+
+
+def bilingual_valuation_status(status: Optional[str]) -> str:
+    """Renders the valuation enum as '日本語（ENGLISH）', e.g. '妥当（FAIR）'.
+
+    Requested explicitly so reports/labels show both languages together
+    rather than picking one — this also happens to make the label robust
+    against a local-CLI LLM occasionally reverting to the bare English enum
+    word in free-form prose: since the grounding context and the
+    deterministic verdict text both already contain the English token
+    alongside the Japanese one, a model that echoes either half still
+    matches what the reader sees.
+    """
+    if not status:
+        return str(status)
+    ja = VALUATION_STATUS_JA.get(status)
+    if not ja:
+        return status
+    return f"{ja}（{status}）"
+
+
+def layman_verdict_label(status: str, roe_percent: float) -> str:
+    """Plain-language, rule-based takeaway for a given valuation_status/ROE
+    pair — deliberately NOT left to an LLM to phrase freely (see
+    `_build_layman_verdict_section` in src/graph/nodes/synthesizer.py for the
+    full rationale): a buy/hold/caution call must be 100% reproducible for
+    the same numbers, regardless of which surface or LLM provider renders it.
+    """
+    if status == "UNDERVALUED" and roe_percent >= 10:
+        return "🟢 割安圏＋資本効率も良好 → 中長期の「買い」候補として検討の余地あり"
+    if status == "UNDERVALUED":
+        return "🟢 割安圏 → 押し目候補（ただし資本効率は要確認）"
+    if status == "OVERVALUED":
+        return "🔴 割高圏 → 新規の「買い」は慎重に、既存保有者は利益確定も選択肢の一つ"
+    return "🟡 妥当水準 → 「様子見」が妥当、次の材料待ち"
+
+
 def fetch_live_stock_valuation(ticker: str) -> Dict[str, Any]:
     """Fetch live valuation metrics from Yahoo Finance (yfinance) for a Tokyo Stock Exchange ticker."""
     clean_ticker = ticker.strip().upper().replace(".T", "")

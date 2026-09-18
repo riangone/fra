@@ -27,6 +27,10 @@ from config.settings import settings
 from src.citation.extractor import macro_citation_id
 from src.llm.cli_provider import invoke_local_cli
 from src.llm.cloud_provider import invoke_cloud_llm
+from src.mcp_server.tools.live_market_client import (
+    bilingual_valuation_status,
+    layman_verdict_label,
+)
 from src.models.state import AgentState
 
 logger = logging.getLogger(__name__)
@@ -43,7 +47,10 @@ SYNTHESIS_SYSTEM_PROMPT = (
     "前置き・謝辞・確認の質問は書かないこと。\n"
     "5. 与えられたID一覧に無い話題については書かないこと。\n"
     "6. 過去の新聞報道など古いスナップショットは一切参照・引用しないこと。レポートは常に最新の"
-    "Live指標のみに基づいて書くこと。"
+    "Live指標のみに基づいて書くこと。\n"
+    "7. 評価ステータス（割安/割高/妥当）に言及する際は、必ず与えられたコンテキスト中の表記"
+    "『日本語（英語）』の形（例：妥当（FAIR））をそのまま使うこと。英語の英単語だけを"
+    "単独で書いたり、日本語だけに省略したりしないこと。"
 )
 
 
@@ -64,10 +71,11 @@ def _build_grounding_context(chunks: List[Dict[str, Any]], metrics: List[Dict[st
         ticker = m.get("ticker", "")
         if "per" in m and "pbr" in m:
             cid = f"mcp_val_{ticker}"
+            status_label = _bilingual_status(m.get("valuation_status"))
             lines.append(
                 f"- ID: {cid} | {m.get('company_name', '')} 財務指標・バリュエーション\n"
                 f"  内容: 予想PER {m.get('per')}倍、PBR {m.get('pbr')}倍、ROE（自己資本利益率）{m.get('roe_percent')}%、"
-                f"TSR（株主総利回り）{m.get('tsr_percent')}%、評価ステータス『{m.get('valuation_status')}』"
+                f"TSR（株主総利回り）{m.get('tsr_percent')}%、評価ステータス『{status_label}』"
             )
         elif "revenue_billion_jpy" in m:
             cid = f"mcp_disc_{ticker}"
@@ -202,6 +210,7 @@ def synthesize_grounded_response(
             pbr = m.get("pbr")
             roe = m.get("roe_percent")
             status = m.get("valuation_status", "FAIR")
+            status_label = _bilingual_status(status)
             tsr = m.get("tsr_percent", 0.0)
 
             val_cid = f"mcp_val_{ticker}"
@@ -212,7 +221,7 @@ def synthesize_grounded_response(
                 f"現在の予想PERは{per}倍、PBRは{pbr}倍、ROE（自己資本利益率）は{roe}%となっています [{val_cid}]。"
             )
             response_lines.append(
-                f"株主総利回り（TSR）は{tsr}%を記録しており、現在の市場評価ステータスは『{status}』と判定されます [{val_cid}]。"
+                f"株主総利回り（TSR）は{tsr}%を記録しており、現在の市場評価ステータスは『{status_label}』と判定されます [{val_cid}]。"
             )
         elif "revenue_billion_jpy" in m:
             ticker = m.get("ticker", "")
@@ -238,6 +247,19 @@ def synthesize_grounded_response(
 
     response_lines.append("\n---\n*本レポートはLive財務指標DB（yfinance等）に基づき自動生成・根拠検証されています。過去の新聞報道は使用していません。*")
     return "\n".join(response_lines)
+
+
+# Display-only Japanese translation of the internal English enum values.
+# The enum itself (`valuation_status`) stays English everywhere else in the
+# codebase (state, citations, tests) — this map exists solely so the
+# general-reader-facing verdict line doesn't leak a raw English token into
+# an otherwise all-Japanese sentence.
+# Bilingual status label + buy/hold/caution rules now live in
+# live_market_client.py (single source of truth shared with the watchlist
+# rating API — see the comment there for why). Kept as a module-level alias
+# here since this file's internal call sites and tests were written against
+# the `_bilingual_status` name.
+_bilingual_status = bilingual_valuation_status
 
 
 def _build_layman_verdict_section(
@@ -277,18 +299,11 @@ def _build_layman_verdict_section(
         except (TypeError, ValueError):
             roe = 0.0
         cid = f"mcp_val_{ticker}"
-
-        if status == "UNDERVALUED" and roe >= 10:
-            label = "🟢 割安圏＋資本効率も良好 → 中長期の「買い」候補として検討の余地あり"
-        elif status == "UNDERVALUED":
-            label = "🟢 割安圏 → 押し目候補（ただし資本効率は要確認）"
-        elif status == "OVERVALUED":
-            label = "🔴 割高圏 → 新規の「買い」は慎重に、既存保有者は利益確定も選択肢の一つ"
-        else:
-            label = "🟡 妥当水準 → 「様子見」が妥当、次の材料待ち"
+        status_label = _bilingual_status(status)
+        label = layman_verdict_label(status, roe)
 
         verdict_lines.append(
-            f"- **{comp}（{ticker}）**：{label}（評価ステータス『{status}』・ROE {roe}% を根拠に機械的判定）[{cid}]"
+            f"- **{comp}（{ticker}）**：{label}（評価ステータス『{status_label}』・ROE {roe}% を根拠に機械的判定）[{cid}]"
         )
 
     if not verdict_lines:

@@ -43,6 +43,13 @@ class ChatRequest(BaseModel):
     data_source_mode: Optional[str] = Field(default=None, description="Data source mode: 'snapshot' or 'live_api'")
 
 
+class WatchlistAddRequest(BaseModel):
+    ticker: str = Field(
+        ...,
+        description="TSE ticker code (e.g. '7203') or Japanese/English company name to resolve.",
+    )
+
+
 class ChatResponse(BaseModel):
     session_id: str
     query: str

@@ -7,9 +7,11 @@ from typing import AsyncGenerator, Optional
 from fastapi import APIRouter, HTTPException
 from sse_starlette.sse import EventSourceResponse
 
-from src.models.state import ChatRequest, ChatResponse
+from src.models.state import ChatRequest, ChatResponse, WatchlistAddRequest
 from src.graph.workflow import financial_graph
 from src.graph.nodes.hybrid_search import get_shared_retriever
+from src.services import watchlist as watchlist_service
+from src.mcp_server.tools.live_market_client import fetch_live_stock_valuation
 
 router = APIRouter(prefix="/api/v1", tags=["financial-rag"])
 
@@ -181,6 +183,52 @@ async def get_document_detail(doc_id: str):
 async def get_citation_detail(doc_id: str):
     """Alias for /documents/{doc_id} to support citation links."""
     return await get_document_detail(doc_id)
+
+
+# --- 自選銘柄 (Watchlist) -----------------------------------------------
+# No auth/user model exists in this app (session_id is per-conversation, not
+# per-account — see chat_sync below), so this is a single global list backed
+# by data/watchlist.json. See src/services/watchlist.py for the full design
+# rationale, including why "periodic rating" doesn't need a new scheduler.
+
+
+@router.get("/watchlist")
+async def list_watchlist_items():
+    return {"items": watchlist_service.list_watchlist()}
+
+
+@router.post("/watchlist")
+async def add_watchlist_item(request: WatchlistAddRequest):
+    resolved = watchlist_service.resolve_ticker_input(request.ticker)
+    if not resolved:
+        raise HTTPException(
+            status_code=404,
+            detail=f"銘柄を特定できませんでした: '{request.ticker}'（証券コード4桁または正式な会社名でお試しください）",
+        )
+
+    valuation = await asyncio.to_thread(fetch_live_stock_valuation, resolved)
+    if valuation.get("error"):
+        raise HTTPException(status_code=404, detail=f"銘柄データを取得できませんでした: {resolved}")
+
+    entry = watchlist_service.add_ticker(resolved, valuation.get("company_name", resolved))
+    return {"status": "success", "item": entry}
+
+
+@router.delete("/watchlist/{ticker}")
+async def remove_watchlist_item(ticker: str):
+    removed = watchlist_service.remove_ticker(ticker)
+    if not removed:
+        raise HTTPException(status_code=404, detail=f"ウォッチリストに '{ticker}' は登録されていません")
+    return {"status": "success"}
+
+
+@router.get("/watchlist/ratings")
+async def get_watchlist_ratings():
+    """Live, deterministic buy/hold/caution rating per watchlisted stock —
+    the same rule table the chat report's layman verdict section uses (see
+    src/services/watchlist.py docstring)."""
+    items = await asyncio.to_thread(watchlist_service.get_watchlist_with_ratings)
+    return {"items": items, "generated_at": time.time()}
 
 
 

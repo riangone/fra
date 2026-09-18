@@ -1459,6 +1459,34 @@
         </div>
       </section>
     </div>
+
+    <section class="panel" style="margin-top:1.5rem;">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+          ⭐ 自選銘柄 (Watchlist) ・定期評価
+        </div>
+        <span class="code-font" id="watchlistUpdatedAt" style="font-size:0.72rem; color:var(--text-muted);"></span>
+      </div>
+      <div class="panel-body">
+        <p style="font-size:0.78rem; color:var(--text-muted); margin:0 0 0.75rem;">
+          証券コード（例: 7203）または企業名を登録すると、PER/PBR/ROE等の実データに基づく「買い／様子見／慎重」の参考ラベルが約5分ごとの最新値で自動更新されます（投資助言ではありません）。
+        </p>
+        <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+          <input id="watchlistInput" type="text" placeholder="証券コード or 企業名 (例: 7203 / トヨタ自動車)"
+                 style="flex:1; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:var(--text-main,inherit); padding:0 0.9rem; font-size:0.85rem; height:38px;"
+                 onkeydown="if(event.key==='Enter') addToWatchlist();">
+          <button class="btn-submit" style="height:38px;" onclick="addToWatchlist()">＋ 追加</button>
+          <button class="btn-submit" style="height:38px; background:linear-gradient(135deg,#334155 0%,#1e293b 100%);" onclick="loadWatchlist()">🔄 更新</button>
+        </div>
+        <div id="watchlistError" style="display:none; color:#ef4444; font-size:0.78rem; margin-bottom:0.75rem;"></div>
+        <div id="watchlistGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:0.75rem;">
+          <div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:1.5rem; grid-column:1/-1;">
+            まだ銘柄が登録されていません。上の欄に証券コードまたは企業名を入力して追加してください。
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer>
@@ -1948,6 +1976,117 @@
       document.getElementById('valRecall').innerText = `${((report.recall || 0) * 100).toFixed(1)}%`;
     }
 
+    // --- 自選銘柄 (Watchlist) --------------------------------------------
+    // Rating label rules run server-side (src/services/watchlist.py, sharing
+    // the exact same buy/hold/caution lookup table as the report's layman
+    // verdict section) — this JS only fetches and renders, no local logic.
+    const WATCHLIST_REFRESH_MS = 30 * 60 * 1000; // front-end poll interval.
+    // Server-side yfinance cache TTL is still 5 min (unchanged) — polling at
+    // 30 min just reduces request frequency; it will simply pick up whatever
+    // the cache holds at poll time rather than always the freshest 5-min tick.
+    let watchlistRefreshTimer = null;
+
+    function watchlistStatusColor(status) {
+      if (status === 'UNDERVALUED') return '#10b981';
+      if (status === 'OVERVALUED') return '#ef4444';
+      return '#f59e0b';
+    }
+
+    async function loadWatchlist() {
+      const grid = document.getElementById('watchlistGrid');
+      const errBox = document.getElementById('watchlistError');
+      errBox.style.display = 'none';
+      try {
+        const res = await fetch('/api/v1/watchlist/ratings');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderWatchlist(data.items || []);
+        document.getElementById('watchlistUpdatedAt').innerText =
+          '更新: ' + new Date((data.generated_at || Date.now() / 1000) * 1000).toLocaleTimeString('ja-JP');
+      } catch (e) {
+        errBox.innerText = `⚠ ウォッチリストの取得に失敗しました: ${escapeHtml(e.message || String(e))}`;
+        errBox.style.display = 'block';
+      }
+    }
+
+    function renderWatchlist(items) {
+      const grid = document.getElementById('watchlistGrid');
+      if (!items.length) {
+        grid.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:1.5rem; grid-column:1/-1;">
+          まだ銘柄が登録されていません。上の欄に証券コードまたは企業名を入力して追加してください。
+        </div>`;
+        return;
+      }
+
+      grid.innerHTML = items.map(item => {
+        const removeBtn = `<button onclick="removeFromWatchlist('${escapeHtml(item.ticker)}')" title="削除"
+          style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.9rem; line-height:1;">✕</button>`;
+
+        if (!item.rating_available) {
+          return `<div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:10px; padding:0.85rem;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div><strong>${escapeHtml(item.company_name)}</strong> <span class="code-font" style="color:var(--text-muted); font-size:0.75rem;">(${escapeHtml(item.ticker)})</span></div>
+              ${removeBtn}
+            </div>
+            <div style="color:var(--text-muted); font-size:0.78rem; margin-top:0.5rem;">⚠ 現在データを取得できません（${escapeHtml(item.error || '')}）</div>
+          </div>`;
+        }
+
+        const color = watchlistStatusColor(item.valuation_status);
+        return `<div style="background:var(--bg-card); border:1px solid var(--border-color); border-left:3px solid ${color}; border-radius:10px; padding:0.85rem;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div><strong>${escapeHtml(item.company_name)}</strong> <span class="code-font" style="color:var(--text-muted); font-size:0.75rem;">(${escapeHtml(item.ticker)})</span></div>
+            ${removeBtn}
+          </div>
+          <div style="font-size:0.72rem; color:var(--text-muted); margin:0.35rem 0;">評価ステータス: ${escapeHtml(item.valuation_status_label)}</div>
+          <div style="font-size:0.82rem; font-weight:600; margin-bottom:0.5rem;">${escapeHtml(item.verdict_label)}</div>
+          <div class="code-font" style="font-size:0.72rem; color:var(--text-muted); display:grid; grid-template-columns:1fr 1fr; gap:2px 8px;">
+            <span>PER ${item.per ?? '-'}</span><span>PBR ${item.pbr ?? '-'}</span>
+            <span>ROE ${item.roe_percent ?? '-'}%</span><span>配当 ${item.dividend_yield_percent ?? '-'}%</span>
+          </div>
+          <div style="font-size:0.68rem; color:var(--text-muted); margin-top:0.4rem;">${escapeHtml(item.as_of_date || '')} ・ 投資助言ではありません</div>
+        </div>`;
+      }).join('');
+    }
+
+    async function addToWatchlist() {
+      const input = document.getElementById('watchlistInput');
+      const errBox = document.getElementById('watchlistError');
+      const raw = input.value.trim();
+      errBox.style.display = 'none';
+      if (!raw) return;
+
+      try {
+        const res = await fetch('/api/v1/watchlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticker: raw }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        input.value = '';
+        await loadWatchlist();
+      } catch (e) {
+        errBox.innerText = `⚠ ${escapeHtml(e.message || String(e))}`;
+        errBox.style.display = 'block';
+      }
+    }
+
+    async function removeFromWatchlist(ticker) {
+      try {
+        const res = await fetch(`/api/v1/watchlist/${encodeURIComponent(ticker)}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || `HTTP ${res.status}`);
+        }
+        await loadWatchlist();
+      } catch (e) {
+        const errBox = document.getElementById('watchlistError');
+        errBox.innerText = `⚠ ${escapeHtml(e.message || String(e))}`;
+        errBox.style.display = 'block';
+      }
+    }
+
     function toggleDocsMenu(e) {
       if (e) e.stopPropagation();
       const menu = document.getElementById('docsMenu');
@@ -1971,6 +2110,8 @@
     // Initialize on page load
     window.addEventListener('DOMContentLoaded', () => {
       initTheme();
+      loadWatchlist();
+      watchlistRefreshTimer = setInterval(loadWatchlist, WATCHLIST_REFRESH_MS);
     });
   </script>
 </body>
